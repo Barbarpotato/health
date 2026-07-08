@@ -2,10 +2,10 @@
   "name": "wellness-api",
   "version": "1.0.0",
   "description": "Express API for wellness activity tracking, backed by Supabase",
-  "main": "index.js",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js",
+    "start": "node api/index.js",
+    "dev": "node api/index.js",
     "dev:web": "cd web && npm run dev",
     "build:web": "cd web && npm install && npm run build"
   },

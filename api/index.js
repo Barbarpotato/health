@@ -3,13 +3,13 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 
-const usersRouter = require('./routes/users');
-const activitiesRouter = require('./routes/activities');
-const photosRouter = require('./routes/photos');
-const adminRouter = require('./routes/admin');
+const usersRouter = require('../routes/users');
+const activitiesRouter = require('../routes/activities');
+const photosRouter = require('../routes/photos');
+const adminRouter = require('../routes/admin');
 
 const app = express();
-const webDist = path.join(__dirname, 'web', 'dist');
+const webDist = path.join(__dirname, '..', 'web', 'dist');
 
 app.use(cors());
 app.use(express.json());
@@ -26,7 +26,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve the built React app; fall back to index.html for client-side routes.
+// Local dev convenience: serve the built React app from this same process.
+// In production on Vercel, static files and SPA fallback are handled by
+// vercel.json (outputDirectory + rewrites) before requests ever reach this function.
 app.use(express.static(webDist));
 app.get('*', (req, res) => res.sendFile(path.join(webDist, 'index.html')));
 
