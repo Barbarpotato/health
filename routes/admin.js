@@ -19,7 +19,7 @@ router.post('/login', (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('admin_token');
+  res.clearCookie('admin_token', { httpOnly: true, sameSite: 'lax' });
   res.json({ ok: true });
 });
 
@@ -27,19 +27,44 @@ router.get('/me', requireAdmin, (req, res) => {
   res.json({ username: process.env.ADMIN_USERNAME });
 });
 
-// Admin can add users, but never delete them.
+// Admin can see username + password for every user.
+router.get('/users', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, password')
+    .order('full_name', { ascending: true });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// Admin can add users (and sets their password), but never delete them.
 router.post('/users', requireAdmin, async (req, res) => {
-  const { full_name } = req.body;
-  if (!full_name || !full_name.trim()) {
-    return res.status(400).json({ error: 'full_name required' });
+  const { full_name, password } = req.body;
+  if (!full_name || !full_name.trim() || !password) {
+    return res.status(400).json({ error: 'full_name and password required' });
   }
   const { data, error } = await supabase
     .from('users')
-    .insert({ full_name: full_name.trim() })
-    .select()
+    .insert({ full_name: full_name.trim(), password })
+    .select('id, full_name, password')
     .single();
   if (error) return res.status(400).json({ error: error.message });
   res.status(201).json(data);
+});
+
+// Admin can (re)set a user's password. Still can't delete users.
+router.put('/users/:id/password', requireAdmin, async (req, res) => {
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'password required' });
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ password })
+    .eq('id', req.params.id)
+    .select('id, full_name, password')
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
 });
 
 // Activity report: filter by category/user/date range/caption search, sort, paginate.

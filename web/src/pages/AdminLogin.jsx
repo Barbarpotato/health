@@ -72,7 +72,7 @@ export default function AdminLogin() {
             to="/"
             className="rounded-full px-4 py-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 hover:text-neutral-900 dark:hover:text-white transition"
           >
-            ← Kembali ke situs
+            ← Login sebagai pengguna
           </Link>
         </div>
       </div>

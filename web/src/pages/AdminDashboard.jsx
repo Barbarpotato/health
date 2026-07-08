@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, ChevronLeft, ChevronRight, ArrowUpDown, X } from 'lucide-react';
+import { UserPlus, ChevronLeft, ChevronRight, ArrowUpDown, X, Eye, EyeOff, KeyRound, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import CategoryBadge from '../components/CategoryBadge';
@@ -19,7 +19,12 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
 
   const [newUserName, setNewUserName] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
   const [addingUser, setAddingUser] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editPassword, setEditPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [filters, setFilters] = useState({
     category: '',
@@ -47,11 +52,15 @@ export default function AdminDashboard() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!ready) return;
-    fetch('/api/users')
+  function loadUsers() {
+    fetch('/api/admin/users')
       .then((r) => r.json())
       .then(setUsers);
+  }
+
+  useEffect(() => {
+    if (!ready) return;
+    loadUsers();
   }, [ready]);
 
   useEffect(() => {
@@ -109,24 +118,48 @@ export default function AdminDashboard() {
   async function handleAddUser(e) {
     e.preventDefault();
     const full_name = newUserName.trim();
-    if (!full_name) return;
+    const password = newUserPassword;
+    if (!full_name || !password) return;
 
     setAddingUser(true);
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name }),
+        body: JSON.stringify({ full_name, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menambah pengguna');
       toast.success(`"${data.full_name}" berhasil ditambahkan`);
       setNewUserName('');
-      fetch('/api/users').then((r) => r.json()).then(setUsers);
+      setNewUserPassword('');
+      loadUsers();
     } catch (err) {
       toast.error(err.message);
     } finally {
       setAddingUser(false);
+    }
+  }
+
+  async function handleSetPassword(id) {
+    if (!editPassword) return;
+    setSavingPassword(true);
+    try {
+      const res = await fetch(`/api/admin/users/${id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: editPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengubah kata sandi');
+      toast.success(`Kata sandi "${data.full_name}" diperbarui`);
+      setEditingUserId(null);
+      setEditPassword('');
+      loadUsers();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -155,21 +188,115 @@ export default function AdminDashboard() {
       <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8 flex flex-col gap-6">
         <section className="glass rounded-2xl p-5">
           <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400 mb-3">Tambah pengguna</h2>
-          <form onSubmit={handleAddUser} className="flex gap-2">
+          <form onSubmit={handleAddUser} className="flex flex-wrap gap-2">
             <input
               value={newUserName}
               onChange={(e) => setNewUserName(e.target.value)}
               placeholder="Nama lengkap"
-              className={`${inputClass} flex-1`}
+              className={`${inputClass} flex-1 min-w-[160px]`}
+            />
+            <input
+              value={newUserPassword}
+              onChange={(e) => setNewUserPassword(e.target.value)}
+              placeholder="Kata sandi"
+              className={`${inputClass} flex-1 min-w-[160px]`}
             />
             <button
-              disabled={addingUser || !newUserName.trim()}
+              disabled={addingUser || !newUserName.trim() || !newUserPassword}
               className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-pink-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 hover:brightness-110 transition"
             >
               {addingUser ? <Spinner className="size-4" /> : <UserPlus className="size-4" />}
               Tambah
             </button>
           </form>
+        </section>
+
+        <section className="glass rounded-2xl p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Daftar pengguna</h2>
+            <button
+              onClick={() => setShowPasswords((s) => !s)}
+              className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition"
+            >
+              {showPasswords ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              {showPasswords ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+            </button>
+          </div>
+
+          <div className="overflow-x-auto scrollbar-thin -mx-5">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="text-left text-neutral-500 border-b border-black/10 dark:border-white/10">
+                  <th className="px-5 py-2 font-medium">Nama</th>
+                  <th className="px-5 py-2 font-medium">Kata sandi</th>
+                  <th className="px-5 py-2 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => {
+                  const editing = editingUserId === u.id;
+                  return (
+                    <tr key={u.id} className="border-b border-black/5 dark:border-white/5">
+                      <td className="px-5 py-3 whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                        {u.full_name}
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap font-mono text-neutral-600 dark:text-neutral-300">
+                        {editing ? (
+                          <input
+                            autoFocus
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            placeholder="Kata sandi baru"
+                            className={`${inputClass} font-sans`}
+                          />
+                        ) : u.password ? (
+                          showPasswords ? u.password : '••••••••'
+                        ) : (
+                          <span className="text-neutral-400 dark:text-neutral-600 italic">belum diatur</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        {editing ? (
+                          <div className="flex gap-1">
+                            <button
+                              disabled={savingPassword || !editPassword}
+                              onClick={() => handleSetPassword(u.id)}
+                              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white bg-indigo-500 hover:brightness-110 disabled:opacity-40 transition"
+                            >
+                              {savingPassword ? <Spinner className="size-3.5" /> : <Check className="size-3.5" />}
+                              Simpan
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingUserId(null);
+                                setEditPassword('');
+                              }}
+                              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 transition"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingUserId(u.id);
+                              setEditPassword('');
+                            }}
+                            className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white transition"
+                          >
+                            <KeyRound className="size-3.5" />
+                            Atur
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {users.length === 0 && <EmptyState icon={UserPlus} title="Belum ada pengguna" />}
+          </div>
         </section>
 
         <section className="glass rounded-2xl p-5 flex flex-col gap-4">

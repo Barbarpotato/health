@@ -2,7 +2,8 @@
 
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
-  full_name text not null
+  full_name text not null,
+  password text
 );
 
 create type wellness_category as enum ('physical wellness', 'mental wellness', 'intellectual wellness');

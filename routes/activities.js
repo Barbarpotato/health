@@ -79,10 +79,23 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
+	const activityId = req.params.id;
+
+	// Photos are uploaded under a storage folder named after the activity id
+	// (see routes/photos.js upload path) — remove the actual files first,
+	// otherwise deleting the row just orphans them in the bucket forever.
+	const { data: files, error: listError } = await supabase.storage
+		.from("photos")
+		.list(activityId);
+	if (!listError && files?.length) {
+		const paths = files.map((f) => `${activityId}/${f.name}`);
+		await supabase.storage.from("photos").remove(paths);
+	}
+
 	const { error } = await supabase
 		.from("activities")
 		.delete()
-		.eq("id", req.params.id);
+		.eq("id", activityId);
 	if (error) return res.status(400).json({ error: error.message });
 	res.status(204).send();
 });

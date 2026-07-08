@@ -14,6 +14,12 @@ const webDist = path.join(__dirname, '..', 'web', 'dist');
 app.use(cors());
 app.use(express.json());
 
+// Auth state must never be served stale from cache — always hit the server.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 app.get('/api', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/users', usersRouter);

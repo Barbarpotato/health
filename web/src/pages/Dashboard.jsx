@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [confirmPost, setConfirmPost] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -121,8 +122,11 @@ export default function Dashboard() {
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete() {
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
     await api(`/activities/${id}`, { method: 'DELETE' });
+    toast.success('Aktivitas dan foto dihapus.');
     reloadFromStart();
   }
 
@@ -245,9 +249,19 @@ export default function Dashboard() {
 
           <div className="flex flex-col gap-4">
             {activities?.map((a) => (
-              <ActivityCard key={a.id} activity={a} onDelete={handleDelete} />
+              <ActivityCard key={a.id} activity={a} onDelete={() => setConfirmDeleteId(a.id)} />
             ))}
           </div>
+
+          <ConfirmDialog
+            open={!!confirmDeleteId}
+            title="Hapus aktivitas ini?"
+            description="Aktivitas dan semua foto di dalamnya akan dihapus permanen."
+            confirmLabel="Hapus"
+            danger
+            onConfirm={handleDelete}
+            onCancel={() => setConfirmDeleteId(null)}
+          />
 
           {activities !== null && hasMore && (
             <div ref={sentinelRef} className="flex justify-center py-6 text-neutral-400 dark:text-neutral-500">
