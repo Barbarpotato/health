@@ -10,18 +10,9 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { CATEGORIES, MINDFUL_NUTRITION } from '../lib/categories';
 import { api, ApiError } from '../lib/api';
 import { getUser, clearUser } from '../lib/auth';
+import { uploadFiles } from '../lib/upload';
 
 const PAGE_SIZE = 10;
-
-async function uploadFiles(activityId, files) {
-  for (const file of files) {
-    const fd = new FormData();
-    fd.append('activity_id', activityId);
-    fd.append('file', file);
-    const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('Gagal mengunggah foto.');
-  }
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -238,7 +229,11 @@ export default function Dashboard() {
             <div className="flex flex-wrap gap-2">
               {files.map((f, i) => (
                 <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
-                  <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                  {f.type.startsWith('video/') ? (
+                    <video src={URL.createObjectURL(f)} className="h-full w-full object-cover" muted />
+                  ) : (
+                    <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                  )}
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
@@ -253,11 +248,13 @@ export default function Dashboard() {
 
           <label className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 dark:border-white/15 px-4 py-3 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:border-indigo-400/50 hover:bg-indigo-500/5 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition">
             <ImagePlus className="size-4" />
-            {files.length === 0 ? 'Klik untuk tambah foto (wajib)' : `${files.length} foto dipilih — klik untuk tambah lagi`}
+            {files.length === 0
+              ? 'Klik untuk tambah foto/video (wajib)'
+              : `${files.length} file dipilih — klik untuk tambah lagi`}
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               onChange={(e) => addFiles(e.target.files)}
               className="hidden"
@@ -274,7 +271,11 @@ export default function Dashboard() {
               <div className="flex flex-wrap gap-2 mb-2">
                 {nutritionFiles.map((f, i) => (
                   <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
-                    <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                    {f.type.startsWith('video/') ? (
+                      <video src={URL.createObjectURL(f)} className="h-full w-full object-cover" muted />
+                    ) : (
+                      <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                    )}
                     <button
                       type="button"
                       onClick={() => removeNutritionFile(i)}
@@ -292,12 +293,12 @@ export default function Dashboard() {
             >
               <ImagePlus className="size-4" />
               {nutritionFiles.length === 0
-                ? 'Klik untuk tambah foto makanan (wajib)'
-                : `${nutritionFiles.length} foto dipilih — klik untuk tambah lagi`}
+                ? 'Klik untuk tambah foto/video makanan (wajib)'
+                : `${nutritionFiles.length} file dipilih — klik untuk tambah lagi`}
               <input
                 ref={nutritionInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 multiple
                 onChange={(e) => addNutritionFiles(e.target.files)}
                 className="hidden"

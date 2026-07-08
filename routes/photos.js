@@ -1,9 +1,7 @@
 const express = require('express');
-const multer = require('multer');
 const supabase = require('../lib/supabase');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get('/', async (req, res) => {
   const { activity_id } = req.query;
@@ -15,33 +13,27 @@ router.get('/', async (req, res) => {
   res.json(data);
 });
 
-// Upload a file directly to Supabase storage, then create the photo record
-router.post('/upload', upload.single('file'), async (req, res) => {
-  const { activity_id } = req.body;
-  if (!activity_id || !req.file) {
-    return res.status(400).json({ error: 'activity_id and file required' });
+// Issue a signed upload URL so the browser can upload the file straight to
+// Supabase Storage — bypassing this server entirely. Needed because Vercel's
+// serverless functions cap request bodies at ~4.5MB, too small for videos
+// (and some photos).
+router.post('/sign-upload', async (req, res) => {
+  const { activity_id, filename } = req.body;
+  if (!activity_id || !filename) {
+    return res.status(400).json({ error: 'activity_id and filename required' });
   }
 
-  const ext = req.file.originalname.split('.').pop();
-  const path = `${activity_id}/${Date.now()}.${ext}`;
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${activity_id}/${Date.now()}-${safeName}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('photos')
-    .upload(path, req.file.buffer, { contentType: req.file.mimetype });
-  if (uploadError) return res.status(400).json({ error: uploadError.message });
+  const { data, error } = await supabase.storage.from('photos').createSignedUploadUrl(path);
+  if (error) return res.status(400).json({ error: error.message });
 
   const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
-
-  const { data, error } = await supabase
-    .from('photos')
-    .insert({ activity_id, url: publicUrl })
-    .select()
-    .single();
-  if (error) return res.status(400).json({ error: error.message });
-  res.status(201).json(data);
+  res.json({ path, token: data.token, signedUrl: data.signedUrl, publicUrl });
 });
 
-// Create a photo record from an existing URL
+// Create a photo/video record from an already-uploaded URL
 router.post('/', async (req, res) => {
   const { activity_id, url } = req.body;
   if (!activity_id || !url) {

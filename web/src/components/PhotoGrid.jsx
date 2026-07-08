@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { isVideo } from '../lib/upload';
 
 export default function PhotoGrid({ photos, size = 96 }) {
   const [lightbox, setLightbox] = useState(null);
@@ -23,7 +24,11 @@ export default function PhotoGrid({ photos, size = 96 }) {
             className="overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
             style={{ width: size, height: size }}
           >
-            <img src={p.url} alt="" className="h-full w-full object-cover" />
+            {isVideo(p.url) ? (
+              <video src={p.url} className="h-full w-full object-cover" muted />
+            ) : (
+              <img src={p.url} alt="" className="h-full w-full object-cover" />
+            )}
           </button>
         ))}
       </div>
@@ -39,7 +44,17 @@ export default function PhotoGrid({ photos, size = 96 }) {
           >
             <X className="size-8" />
           </button>
-          <img src={lightbox} alt="" className="max-w-full max-h-full w-full h-full object-contain" />
+          {isVideo(lightbox) ? (
+            <video
+              src={lightbox}
+              controls
+              autoPlay
+              className="max-w-full max-h-full w-full h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <img src={lightbox} alt="" className="max-w-full max-h-full w-full h-full object-contain" />
+          )}
         </div>
       )}
     </>
