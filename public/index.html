@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Wellness Tracker</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<header>
+			<h1>Wellness Tracker</h1>
+			<div class="header-actions">
+				<span id="whoami" class="meta"></span>
+				<a href="feed.html">All activity</a>
+				<button id="logout-btn">Log out</button>
+			</div>
+		</header>
+
+		<main class="single-column">
+			<section class="panel">
+				<h2>New activity</h2>
+				<form id="activity-form">
+					<select id="activity-category" required>
+						<option value="physical wellness">
+							Physical wellness
+						</option>
+						<option value="mental wellness">Mental wellness</option>
+						<option value="intellectual wellness">
+							Intellectual wellness
+						</option>
+					</select>
+					<input
+						type="text"
+						id="activity-caption"
+						placeholder="Caption"
+					/>
+					<input
+						type="file"
+						id="activity-photos"
+						accept="image/*"
+						multiple
+						required
+					/>
+					<button type="submit">Add activity</button>
+				</form>
+				<p class="meta">At least 1 photo required.</p>
+			</section>
+
+			<section class="panel">
+				<h2>My activities</h2>
+				<div id="activity-list"></div>
+			</section>
+		</main>
+
+		<script src="app.js"></script>
+	</body>
+</html>
