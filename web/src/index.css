@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  color-scheme: light;
+}
+:root.dark {
   color-scheme: dark;
 }
 
@@ -11,12 +16,18 @@ body,
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100 antialiased;
+  @apply bg-neutral-50 text-neutral-900 antialiased;
+  @apply dark:bg-neutral-950 dark:text-neutral-100;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(99, 102, 241, 0.10), transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(236, 72, 153, 0.07), transparent 40%);
+  background-attachment: fixed;
+  margin: 0;
+}
+.dark body {
   background-image:
     radial-gradient(circle at 15% 0%, rgba(99, 102, 241, 0.18), transparent 40%),
     radial-gradient(circle at 85% 20%, rgba(236, 72, 153, 0.12), transparent 40%);
-  background-attachment: fixed;
-  margin: 0;
 }
 
 ::selection {
@@ -24,7 +35,8 @@ body {
 }
 
 .glass {
-  @apply bg-white/[0.04] backdrop-blur-xl border border-white/10;
+  @apply bg-white/70 backdrop-blur-xl border border-black/10;
+  @apply dark:bg-white/[0.04] dark:border-white/10;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -32,5 +44,5 @@ body {
   width: 6px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full;
+  @apply bg-black/10 dark:bg-white/10 rounded-full;
 }

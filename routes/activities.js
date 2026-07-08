@@ -5,16 +5,21 @@ const VALID_CATEGORIES = require("../lib/categories");
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-	const { user_id } = req.query;
+	const { user_id, limit = "12", offset = "0" } = req.query;
+
+	const pageSize = Math.min(Math.max(Number(limit) || 12, 1), 50);
+	const pageOffset = Math.max(Number(offset) || 0, 0);
+
 	let query = supabase
 		.from("activities")
-		.select("*, photos(*), users(full_name)")
-		.order("created_at", { ascending: false });
+		.select("*, photos(*), users(full_name)", { count: "exact" })
+		.order("created_at", { ascending: false })
+		.range(pageOffset, pageOffset + pageSize - 1);
 	if (user_id) query = query.eq("user_id", user_id);
 
-	const { data, error } = await query;
+	const { data, error, count } = await query;
 	if (error) return res.status(400).json({ error: error.message });
-	res.json(data);
+	res.json({ data, count, limit: pageSize, offset: pageOffset });
 });
 
 router.get("/:id", async (req, res) => {

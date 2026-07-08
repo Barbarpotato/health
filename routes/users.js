@@ -19,7 +19,8 @@ router.get('/:id', async (req, res) => {
   res.json(data);
 });
 
-// Login: find existing user by full_name, or create one. No password.
+// Login: find existing user by full_name. No password, no auto-create —
+// only an admin can add new users.
 router.post('/login', async (req, res) => {
   const { full_name } = req.body;
   if (!full_name || !full_name.trim()) {
@@ -27,21 +28,15 @@ router.post('/login', async (req, res) => {
   }
   const name = full_name.trim();
 
-  const { data: existing, error: findError } = await supabase
+  const { data: existing, error } = await supabase
     .from('users')
     .select('*')
     .eq('full_name', name)
     .maybeSingle();
-  if (findError) return res.status(400).json({ error: findError.message });
-  if (existing) return res.json(existing);
-
-  const { data, error } = await supabase
-    .from('users')
-    .insert({ full_name: name })
-    .select()
-    .single();
   if (error) return res.status(400).json({ error: error.message });
-  res.status(201).json(data);
+  if (!existing) return res.status(404).json({ error: 'Nama tidak ditemukan. Hubungi admin untuk didaftarkan.' });
+
+  res.json(existing);
 });
 
 router.post('/', async (req, res) => {

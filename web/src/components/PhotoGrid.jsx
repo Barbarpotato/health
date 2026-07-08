@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 export default function PhotoGrid({ photos, size = 96 }) {
   const [lightbox, setLightbox] = useState(null);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e) => e.key === 'Escape' && setLightbox(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox]);
 
   if (!photos || photos.length === 0) return null;
 
@@ -13,7 +20,7 @@ export default function PhotoGrid({ photos, size = 96 }) {
           <button
             key={p.id}
             onClick={() => setLightbox(p.url)}
-            className="overflow-hidden rounded-xl ring-1 ring-white/10 hover:ring-white/30 transition"
+            className="overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
             style={{ width: size, height: size }}
           >
             <img src={p.url} alt="" className="h-full w-full object-cover" />
@@ -23,13 +30,16 @@ export default function PhotoGrid({ photos, size = 96 }) {
 
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black"
           onClick={() => setLightbox(null)}
         >
-          <button className="absolute top-6 right-6 text-white/70 hover:text-white">
-            <X className="size-7" />
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 z-10 text-white/70 hover:text-white"
+          >
+            <X className="size-8" />
           </button>
-          <img src={lightbox} alt="" className="max-h-full max-w-full rounded-2xl shadow-2xl" />
+          <img src={lightbox} alt="" className="max-w-full max-h-full w-full h-full object-contain" />
         </div>
       )}
     </>
