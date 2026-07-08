@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Users, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import ActivityCard from '../components/ActivityCard';
 import EmptyState from '../components/EmptyState';
@@ -14,6 +15,7 @@ export default function Feed() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const offsetRef = useRef(0);
   const loadingRef = useRef(false);
   const sentinelRef = useRef(null);
@@ -23,14 +25,21 @@ export default function Feed() {
     if (loadingRef.current || !hasMore) return;
     loadingRef.current = true;
     setLoading(true);
+    setLoadError(false);
 
-    const res = await api(`/activities?limit=${PAGE_SIZE}&offset=${offsetRef.current}`);
-    setActivities((prev) => [...prev, ...res.data]);
-    offsetRef.current += res.data.length;
-    setHasMore(offsetRef.current < res.count);
-
-    loadingRef.current = false;
-    setLoading(false);
+    try {
+      const res = await api(`/activities?limit=${PAGE_SIZE}&offset=${offsetRef.current}`);
+      setActivities((prev) => [...prev, ...res.data]);
+      offsetRef.current += res.data.length;
+      setHasMore(offsetRef.current < res.count);
+    } catch (err) {
+      setLoadError(true);
+      setHasMore(false);
+      toast.error('Gagal memuat aktivitas.');
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
   }, [hasMore]);
 
   useEffect(() => {
@@ -80,8 +89,12 @@ export default function Feed() {
           </div>
         )}
 
-        {!hasMore && activities.length > 0 && (
+        {!hasMore && !loadError && activities.length > 0 && (
           <p className="text-center text-sm text-neutral-400 dark:text-neutral-600 py-6">Sudah mencapai akhir.</p>
+        )}
+
+        {loadError && (
+          <EmptyState icon={Users} title="Gagal memuat aktivitas" subtitle="Coba muat ulang halaman." />
         )}
 
         {user && (

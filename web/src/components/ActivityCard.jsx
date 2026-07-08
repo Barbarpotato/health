@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Trash2, Salad } from 'lucide-react';
 import CategoryBadge from './CategoryBadge';
 import PhotoGrid from './PhotoGrid';
 import { categoryMeta } from '../lib/categories';
@@ -46,6 +46,24 @@ export default function ActivityCard({ activity, showAuthor = false, onDelete })
       {activity.photos?.length > 0 && (
         <div className="mt-3">
           <PhotoGrid photos={activity.photos} />
+        </div>
+      )}
+
+      {activity.children?.map((child) => (
+        <div key={child.id} className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
+          <CategoryBadge category={child.category} />
+          {child.photos?.length > 0 && (
+            <div className="mt-3">
+              <PhotoGrid photos={child.photos} />
+            </div>
+          )}
+        </div>
+      ))}
+
+      {!activity.children?.length && (
+        <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10 flex items-center gap-1.5 text-xs text-neutral-400 dark:text-neutral-600 italic">
+          <Salad className="size-3.5" />
+          Mindful nutrition belum tercatat (data lama)
         </div>
       )}
     </div>

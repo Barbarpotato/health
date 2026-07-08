@@ -1,5 +1,6 @@
-import { Dumbbell, Brain, BookOpen } from 'lucide-react';
+import { Dumbbell, Brain, BookOpen, Salad } from 'lucide-react';
 
+// The 3 selectable categories — user picks exactly one per post.
 export const CATEGORIES = [
   {
     value: 'physical wellness',
@@ -30,6 +31,20 @@ export const CATEGORIES = [
   },
 ];
 
+// Mandatory companion category — every post also requires a mindful_nutrition
+// child activity (see routes/activities.js parent_id).
+export const MINDFUL_NUTRITION = {
+  value: 'mindful nutrition',
+  label: 'Mindful Nutrition',
+  icon: Salad,
+  color: 'text-lime-700 dark:text-lime-300',
+  ring: 'ring-lime-400/30',
+  bg: 'bg-lime-500/10',
+  gradient: 'from-lime-500/10 to-green-500/5 dark:from-lime-500/20 dark:to-green-500/10',
+};
+
+const ALL_CATEGORIES = [...CATEGORIES, MINDFUL_NUTRITION];
+
 export function categoryMeta(value) {
-  return CATEGORIES.find((c) => c.value === value) || CATEGORIES[0];
+  return ALL_CATEGORIES.find((c) => c.value === value) || CATEGORIES[0];
 }

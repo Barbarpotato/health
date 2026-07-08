@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, ChevronLeft, ChevronRight, ArrowUpDown, X, Eye, EyeOff, KeyRound, Check } from 'lucide-react';
+import {
+  UserPlus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ArrowUpDown,
+  X,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Check,
+  Salad,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import CategoryBadge from '../components/CategoryBadge';
@@ -22,6 +34,7 @@ export default function AdminDashboard() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [addingUser, setAddingUser] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
+  const [usersExpanded, setUsersExpanded] = useState(true);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editPassword, setEditPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
@@ -213,90 +226,101 @@ export default function AdminDashboard() {
 
         <section className="glass rounded-2xl p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Daftar pengguna</h2>
             <button
-              onClick={() => setShowPasswords((s) => !s)}
-              className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition"
+              onClick={() => setUsersExpanded((s) => !s)}
+              className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
             >
-              {showPasswords ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              {showPasswords ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+              <ChevronDown className={`size-4 transition-transform ${usersExpanded ? '' : '-rotate-90'}`} />
+              Daftar pengguna
+              <span className="text-xs font-normal text-neutral-400 dark:text-neutral-600">({users.length})</span>
             </button>
+            {usersExpanded && (
+              <button
+                onClick={() => setShowPasswords((s) => !s)}
+                className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition"
+              >
+                {showPasswords ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                {showPasswords ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+              </button>
+            )}
           </div>
 
-          <div className="overflow-x-auto scrollbar-thin -mx-5">
-            <table className="w-full text-sm min-w-[420px]">
-              <thead>
-                <tr className="text-left text-neutral-500 border-b border-black/10 dark:border-white/10">
-                  <th className="px-5 py-2 font-medium">Nama</th>
-                  <th className="px-5 py-2 font-medium">Kata sandi</th>
-                  <th className="px-5 py-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => {
-                  const editing = editingUserId === u.id;
-                  return (
-                    <tr key={u.id} className="border-b border-black/5 dark:border-white/5">
-                      <td className="px-5 py-3 whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                        {u.full_name}
-                      </td>
-                      <td className="px-5 py-3 whitespace-nowrap font-mono text-neutral-600 dark:text-neutral-300">
-                        {editing ? (
-                          <input
-                            autoFocus
-                            value={editPassword}
-                            onChange={(e) => setEditPassword(e.target.value)}
-                            placeholder="Kata sandi baru"
-                            className={`${inputClass} font-sans`}
-                          />
-                        ) : u.password ? (
-                          showPasswords ? u.password : '••••••••'
-                        ) : (
-                          <span className="text-neutral-400 dark:text-neutral-600 italic">belum diatur</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 whitespace-nowrap">
-                        {editing ? (
-                          <div className="flex gap-1">
-                            <button
-                              disabled={savingPassword || !editPassword}
-                              onClick={() => handleSetPassword(u.id)}
-                              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white bg-indigo-500 hover:brightness-110 disabled:opacity-40 transition"
-                            >
-                              {savingPassword ? <Spinner className="size-3.5" /> : <Check className="size-3.5" />}
-                              Simpan
-                            </button>
+          {usersExpanded && (
+            <div className="overflow-x-auto scrollbar-thin -mx-5">
+              <table className="w-full text-sm min-w-[420px]">
+                <thead>
+                  <tr className="text-left text-neutral-500 border-b border-black/10 dark:border-white/10">
+                    <th className="px-5 py-2 font-medium">Nama</th>
+                    <th className="px-5 py-2 font-medium">Kata sandi</th>
+                    <th className="px-5 py-2 font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => {
+                    const editing = editingUserId === u.id;
+                    return (
+                      <tr key={u.id} className="border-b border-black/5 dark:border-white/5">
+                        <td className="px-5 py-3 whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                          {u.full_name}
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap font-mono text-neutral-600 dark:text-neutral-300">
+                          {editing ? (
+                            <input
+                              autoFocus
+                              value={editPassword}
+                              onChange={(e) => setEditPassword(e.target.value)}
+                              placeholder="Kata sandi baru"
+                              className={`${inputClass} font-sans`}
+                            />
+                          ) : u.password ? (
+                            showPasswords ? u.password : '••••••••'
+                          ) : (
+                            <span className="text-neutral-400 dark:text-neutral-600 italic">belum diatur</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          {editing ? (
+                            <div className="flex gap-1">
+                              <button
+                                disabled={savingPassword || !editPassword}
+                                onClick={() => handleSetPassword(u.id)}
+                                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white bg-indigo-500 hover:brightness-110 disabled:opacity-40 transition"
+                              >
+                                {savingPassword ? <Spinner className="size-3.5" /> : <Check className="size-3.5" />}
+                                Simpan
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingUserId(null);
+                                  setEditPassword('');
+                                }}
+                                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 transition"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               onClick={() => {
-                                setEditingUserId(null);
+                                setEditingUserId(u.id);
                                 setEditPassword('');
                               }}
-                              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 transition"
+                              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white transition"
                             >
-                              Batal
+                              <KeyRound className="size-3.5" />
+                              Atur
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setEditingUserId(u.id);
-                              setEditPassword('');
-                            }}
-                            className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white transition"
-                          >
-                            <KeyRound className="size-3.5" />
-                            Atur
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
-            {users.length === 0 && <EmptyState icon={UserPlus} title="Belum ada pengguna" />}
-          </div>
+              {users.length === 0 && <EmptyState icon={UserPlus} title="Belum ada pengguna" />}
+            </div>
+          )}
         </section>
 
         <section className="glass rounded-2xl p-5 flex flex-col gap-4">
@@ -435,6 +459,17 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-5 py-3">
                       <PhotoGrid photos={a.photos} size={36} />
+                      {a.children?.map((child) => (
+                        <div key={child.id} className="flex items-center gap-2 mt-2">
+                          <Salad className="size-3.5 text-lime-600 dark:text-lime-400 shrink-0" />
+                          <PhotoGrid photos={child.photos} size={28} />
+                        </div>
+                      ))}
+                      {!a.children?.length && (
+                        <p className="mt-2 text-xs italic text-neutral-400 dark:text-neutral-600">
+                          Mindful nutrition belum tercatat (data lama)
+                        </p>
+                      )}
                     </td>
                   </tr>
                 ))}

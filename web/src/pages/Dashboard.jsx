@@ -7,11 +7,21 @@ import ActivityCard from '../components/ActivityCard';
 import EmptyState from '../components/EmptyState';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { CATEGORIES } from '../lib/categories';
+import { CATEGORIES, MINDFUL_NUTRITION } from '../lib/categories';
 import { api, ApiError } from '../lib/api';
 import { getUser, clearUser } from '../lib/auth';
 
 const PAGE_SIZE = 10;
+
+async function uploadFiles(activityId, files) {
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('activity_id', activityId);
+    fd.append('file', file);
+    const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('Gagal mengunggah foto.');
+  }
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,10 +35,13 @@ export default function Dashboard() {
   const [category, setCategory] = useState(null);
   const [caption, setCaption] = useState('');
   const [files, setFiles] = useState([]);
+  const [nutritionFiles, setNutritionFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [confirmPost, setConfirmPost] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const fileInputRef = useRef(null);
+  const nutritionInputRef = useRef(null);
 
   useEffect(() => {
     if (!user) {
@@ -53,21 +66,31 @@ export default function Dashboard() {
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current) return;
     loadingRef.current = true;
+    setLoadError(false);
 
-    const res = await api(`/activities?user_id=${user.id}&limit=${PAGE_SIZE}&offset=${offsetRef.current}`);
-    setActivities((prev) => [...(prev || []), ...res.data]);
-    offsetRef.current += res.data.length;
-    const more = offsetRef.current < res.count;
-    hasMoreRef.current = more;
-    setHasMore(more);
-
-    loadingRef.current = false;
+    try {
+      const res = await api(`/activities?user_id=${user.id}&limit=${PAGE_SIZE}&offset=${offsetRef.current}`);
+      setActivities((prev) => [...(prev || []), ...res.data]);
+      offsetRef.current += res.data.length;
+      const more = offsetRef.current < res.count;
+      hasMoreRef.current = more;
+      setHasMore(more);
+    } catch (err) {
+      setLoadError(true);
+      hasMoreRef.current = false;
+      setHasMore(false);
+      setActivities((prev) => prev || []);
+      toast.error('Gagal memuat aktivitas.');
+    } finally {
+      loadingRef.current = false;
+    }
   }, []);
 
   function reloadFromStart() {
     offsetRef.current = 0;
     hasMoreRef.current = true;
     setHasMore(true);
+    setLoadError(false);
     setActivities(null);
     loadMore();
   }
@@ -80,6 +103,14 @@ export default function Dashboard() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function addNutritionFiles(newFiles) {
+    setNutritionFiles((prev) => [...prev, ...Array.from(newFiles)]);
+  }
+
+  function removeNutritionFile(index) {
+    setNutritionFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!category) {
@@ -90,33 +121,50 @@ export default function Dashboard() {
       toast.error('Tambahkan minimal 1 foto sebelum memposting.');
       return;
     }
+    if (nutritionFiles.length === 0) {
+      toast.error('Foto mindful nutrition wajib diisi.');
+      return;
+    }
     setConfirmPost(true);
   }
 
   async function submitActivity() {
     setConfirmPost(false);
     setSubmitting(true);
+    let activity;
     try {
-      const activity = await api('/activities', {
+      activity = await api('/activities', {
         method: 'POST',
         body: JSON.stringify({ user_id: user.id, category, caption: caption.trim() }),
       });
 
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append('activity_id', activity.id);
-        fd.append('file', file);
-        await fetch('/api/photos/upload', { method: 'POST', body: fd });
-      }
+      await uploadFiles(activity.id, files);
+
+      const nutrition = await api('/activities', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: user.id,
+          category: MINDFUL_NUTRITION.value,
+          parent_id: activity.id,
+        }),
+      });
+      await uploadFiles(nutrition.id, nutritionFiles);
 
       toast.success('Aktivitas berhasil diposting!');
       setCategory(null);
       setCaption('');
       setFiles([]);
+      setNutritionFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      if (nutritionInputRef.current) nutritionInputRef.current.value = '';
       reloadFromStart();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memposting aktivitas');
+      // Mindful nutrition is mandatory — if any step after creating the main
+      // activity fails, roll the whole post back instead of leaving it half-done.
+      if (activity) {
+        await api(`/activities/${activity.id}`, { method: 'DELETE' }).catch(() => {});
+      }
+      toast.error(err instanceof ApiError ? err.message : 'Gagal memposting aktivitas. Coba lagi.');
     } finally {
       setSubmitting(false);
     }
@@ -131,6 +179,8 @@ export default function Dashboard() {
   }
 
   if (!user) return null;
+
+  const NutritionIcon = MINDFUL_NUTRITION.icon;
 
   return (
     <div className="min-h-screen">
@@ -201,28 +251,67 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-pointer transition">
+          <label className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 dark:border-white/15 px-4 py-3 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:border-indigo-400/50 hover:bg-indigo-500/5 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition">
+            <ImagePlus className="size-4" />
+            {files.length === 0 ? 'Klik untuk tambah foto (wajib)' : `${files.length} foto dipilih — klik untuk tambah lagi`}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => addFiles(e.target.files)}
+              className="hidden"
+            />
+          </label>
+
+          <div className={`rounded-xl p-3 ring-1 ${MINDFUL_NUTRITION.bg} ${MINDFUL_NUTRITION.ring}`}>
+            <p className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${MINDFUL_NUTRITION.color}`}>
+              <NutritionIcon className="size-4" strokeWidth={2} />
+              Mindful Nutrition (wajib)
+            </p>
+
+            {nutritionFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {nutritionFiles.map((f, i) => (
+                  <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
+                    <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeNutritionFile(i)}
+                      className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition"
+                    >
+                      <X className="size-4 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <label
+              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-lime-400/50 px-4 py-3 text-sm font-semibold cursor-pointer transition ${MINDFUL_NUTRITION.color} hover:bg-lime-500/10`}
+            >
               <ImagePlus className="size-4" />
-              {files.length === 0 ? 'Tambah foto (wajib)' : `${files.length} foto dipilih`}
+              {nutritionFiles.length === 0
+                ? 'Klik untuk tambah foto makanan (wajib)'
+                : `${nutritionFiles.length} foto dipilih — klik untuk tambah lagi`}
               <input
-                ref={fileInputRef}
+                ref={nutritionInputRef}
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={(e) => addFiles(e.target.files)}
+                onChange={(e) => addNutritionFiles(e.target.files)}
                 className="hidden"
               />
             </label>
-
-            <button
-              disabled={submitting || files.length === 0 || !category}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 hover:brightness-110 transition"
-            >
-              {submitting ? <Spinner className="size-4" /> : <Send className="size-4" />}
-              Posting
-            </button>
           </div>
+
+          <button
+            disabled={submitting || files.length === 0 || nutritionFiles.length === 0 || !category}
+            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 hover:brightness-110 transition"
+          >
+            {submitting ? <Spinner className="size-4" /> : <Send className="size-4" />}
+            Posting
+          </button>
         </form>
 
         <ConfirmDialog
@@ -243,8 +332,12 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activities?.length === 0 && (
+          {activities?.length === 0 && !loadError && (
             <EmptyState icon={ImagePlus} title="Belum ada aktivitas" subtitle="Posting aktivitas pertamamu di atas." />
+          )}
+
+          {loadError && (
+            <EmptyState icon={ImagePlus} title="Gagal memuat aktivitas" subtitle="Coba muat ulang halaman." />
           )}
 
           <div className="flex flex-col gap-4">

@@ -94,7 +94,10 @@ router.get('/report', requireAdmin, async (req, res) => {
 
   let query = supabase
     .from('activities')
-    .select('*, photos(*), users(full_name)', { count: 'exact' })
+    .select('*, photos(*), users(full_name), children:activities!parent_id(*, photos(*))', {
+      count: 'exact',
+    })
+    .is('parent_id', null)
     .order(sortColumn, { ascending })
     .range(pageOffset, pageOffset + pageSize - 1);
 
