@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-neutral-950 text-neutral-100 antialiased;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(99, 102, 241, 0.18), transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(236, 72, 153, 0.12), transparent 40%);
+  background-attachment: fixed;
+  margin: 0;
+}
+
+::selection {
+  @apply bg-indigo-500/30;
+}
+
+.glass {
+  @apply bg-white/[0.04] backdrop-blur-xl border border-white/10;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full;
+}

@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "dev:web": "cd web && npm run dev",
+    "build:web": "cd web && npm install && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
