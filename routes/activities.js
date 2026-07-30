@@ -48,6 +48,24 @@ router.post("/", async (req, res) => {
 			});
 	}
 
+	// Only the anchor row (no parent_id) starts a new post — the other
+	// categories in the same submission are attached to it via parent_id.
+	// One post per user per day, gated on the anchor.
+	if (!parent_id) {
+		const startOfDay = new Date();
+		startOfDay.setHours(0, 0, 0, 0);
+		const { count, error: countError } = await supabase
+			.from("activities")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", user_id)
+			.is("parent_id", null)
+			.gte("created_at", startOfDay.toISOString());
+		if (countError) return res.status(400).json({ error: countError.message });
+		if (count > 0) {
+			return res.status(409).json({ error: "Kamu sudah memposting hari ini. Coba lagi besok." });
+		}
+	}
+
 	const insertData = { user_id, category, caption };
 	if (parent_id) insertData.parent_id = parent_id;
 

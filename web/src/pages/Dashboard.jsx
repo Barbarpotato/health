@@ -189,6 +189,8 @@ export default function Dashboard() {
   if (!user) return null;
 
   const NutritionIcon = MINDFUL_NUTRITION.icon;
+  const postedToday =
+    activities?.length > 0 && new Date(activities[0].created_at).toDateString() === new Date().toDateString();
 
   return (
     <div className="min-h-screen">
@@ -202,7 +204,13 @@ export default function Dashboard() {
       />
 
       <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8 flex flex-col gap-8">
+        {postedToday ? (
+          <div className="glass rounded-2xl p-5 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            Posting hanya bisa 1 kali sehari. Kamu sudah memposting hari ini — coba lagi besok.
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 flex flex-col gap-4">
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">Posting hanya bisa 1 kali sehari.</p>
           <div>
             {selectedCategories.length === 0 && (
               <p className="text-xs font-medium text-pink-600 dark:text-pink-400 mb-2 animate-pulse">
@@ -348,6 +356,7 @@ export default function Dashboard() {
             Posting
           </button>
         </form>
+        )}
 
         <ConfirmDialog
           open={confirmPost}
