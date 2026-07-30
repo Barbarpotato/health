@@ -9,6 +9,7 @@ router.get("/", async (req, res) => {
 
 	const pageSize = Math.min(Math.max(Number(limit) || 12, 1), 50);
 	const pageOffset = Math.max(Number(offset) || 0, 0);
+	const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
 	let query = supabase
 		.from("activities")
@@ -16,6 +17,7 @@ router.get("/", async (req, res) => {
 			count: "exact",
 		})
 		.is("parent_id", null)
+		.gte("created_at", oneWeekAgo.toISOString())
 		.order("created_at", { ascending: false })
 		.range(pageOffset, pageOffset + pageSize - 1);
 	if (user_id) query = query.eq("user_id", user_id);

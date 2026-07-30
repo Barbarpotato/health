@@ -4,7 +4,7 @@ import { Sparkles, LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import ConfirmDialog from './ConfirmDialog';
 
-export default function Navbar({ user, onLogout, links = [] }) {
+export default function Navbar({ user, points, onLogout, links = [] }) {
   const { pathname } = useLocation();
   const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -41,6 +41,12 @@ export default function Navbar({ user, onLogout, links = [] }) {
           {user && (
             <span className="hidden sm:inline-flex items-center rounded-full bg-black/5 dark:bg-white/5 px-3 py-1.5 text-neutral-600 dark:text-neutral-400">
               {user}
+            </span>
+          )}
+
+          {points !== undefined && (
+            <span className="inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 text-xs font-semibold whitespace-nowrap">
+              {points} poin
             </span>
           )}
 

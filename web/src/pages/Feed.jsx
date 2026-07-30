@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Users, ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import ActivityCard from '../components/ActivityCard';
@@ -95,17 +94,6 @@ export default function Feed() {
 
         {loadError && (
           <EmptyState icon={Users} title="Gagal memuat aktivitas" subtitle="Coba muat ulang halaman." />
-        )}
-
-        {user && (
-          <div className="flex items-center justify-center mt-4">
-            <Link
-              to="/admin/login"
-              className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 hover:text-neutral-900 dark:hover:text-white transition"
-            >
-              <ShieldCheck className="size-3.5" /> Admin
-            </Link>
-          </div>
         )}
       </main>
     </div>

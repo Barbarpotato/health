@@ -31,7 +31,14 @@ export default function Dashboard() {
   const [confirmPost, setConfirmPost] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [loadError, setLoadError] = useState(false);
+  const [totalPoints, setTotalPoints] = useState(undefined);
   const nutritionInputRef = useRef(null);
+
+  function loadPoints() {
+    api(`/users/${user.id}/points`)
+      .then((res) => setTotalPoints(res.points))
+      .catch(() => {});
+  }
 
   useEffect(() => {
     if (!user) {
@@ -39,6 +46,7 @@ export default function Dashboard() {
       return;
     }
     loadMore();
+    loadPoints();
   }, []);
 
   useEffect(() => {
@@ -196,6 +204,7 @@ export default function Dashboard() {
     <div className="min-h-screen">
       <Navbar
         user={user.full_name}
+        points={totalPoints}
         onLogout={() => {
           clearUser();
           navigate('/');

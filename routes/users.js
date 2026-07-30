@@ -20,6 +20,14 @@ router.get('/:id', async (req, res) => {
   res.json(data);
 });
 
+// Total points across every activity (anchor + children) for one user.
+router.get('/:id/points', async (req, res) => {
+  const { data, error } = await supabase.from('activities').select('points').eq('user_id', req.params.id);
+  if (error) return res.status(400).json({ error: error.message });
+  const total = data.reduce((sum, a) => sum + (a.points || 0), 0);
+  res.json({ points: total });
+});
+
 // Login: full_name + password must match exactly. No auto-create —
 // only an admin can add new users (and set their password).
 router.post('/login', async (req, res) => {
