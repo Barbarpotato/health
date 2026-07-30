@@ -1,10 +1,10 @@
 // Mirrors lib/points.js on the backend — points are fixed per category.
 export const POINTS_BY_CATEGORY = {
-  'physical wellness': 10,
-  'mental wellness': 10,
-  'intellectual wellness': 10,
+  olahraga: 10,
+  journaling: 10,
+  learning: 10,
   'mindful nutrition': 10,
-  'bonus activity': 5,
+  bonus: 5,
 };
 
 export function pointsFor(category) {

@@ -3,8 +3,8 @@ import { Dumbbell, Brain, BookOpen, Salad, Gift } from 'lucide-react';
 // The 4 selectable categories — user can pick any/all in one post.
 export const CATEGORIES = [
   {
-    value: 'physical wellness',
-    label: 'Physical',
+    value: 'olahraga',
+    label: 'Olahraga',
     icon: Dumbbell,
     color: 'text-orange-700 dark:text-orange-300',
     ring: 'ring-orange-400/30',
@@ -12,8 +12,8 @@ export const CATEGORIES = [
     gradient: 'from-orange-500/10 to-red-500/5 dark:from-orange-500/20 dark:to-red-500/10',
   },
   {
-    value: 'mental wellness',
-    label: 'Mental',
+    value: 'journaling',
+    label: 'Journaling',
     icon: Brain,
     color: 'text-violet-700 dark:text-violet-300',
     ring: 'ring-violet-400/30',
@@ -21,8 +21,8 @@ export const CATEGORIES = [
     gradient: 'from-violet-500/10 to-indigo-500/5 dark:from-violet-500/20 dark:to-indigo-500/10',
   },
   {
-    value: 'intellectual wellness',
-    label: 'Intellectual',
+    value: 'learning',
+    label: 'Learning',
     icon: BookOpen,
     color: 'text-teal-700 dark:text-teal-300',
     ring: 'ring-teal-400/30',
@@ -30,7 +30,7 @@ export const CATEGORIES = [
     gradient: 'from-teal-500/10 to-emerald-500/5 dark:from-teal-500/20 dark:to-emerald-500/10',
   },
   {
-    value: 'bonus activity',
+    value: 'bonus',
     label: 'Bonus',
     icon: Gift,
     color: 'text-amber-700 dark:text-amber-300',

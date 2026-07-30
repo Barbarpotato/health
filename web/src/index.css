@@ -46,3 +46,10 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   @apply bg-black/10 dark:bg-white/10 rounded-full;
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

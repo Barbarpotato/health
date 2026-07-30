@@ -1,9 +1,36 @@
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { isVideo } from '../lib/upload';
+
+function VideoBadge({ size }) {
+  return (
+    <span
+      className={`pointer-events-none absolute inset-0 flex items-center justify-center ${
+        size === 'full' ? '' : 'bg-black/10'
+      }`}
+    >
+      <span className="flex items-center justify-center rounded-full bg-black/50 text-white size-8">
+        <Play className="size-4 fill-white" strokeWidth={0} />
+      </span>
+    </span>
+  );
+}
 
 export default function PhotoGrid({ photos, size = 96 }) {
   const [lightbox, setLightbox] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollerRef = useRef(null);
+
+  function handleScroll(e) {
+    const el = e.currentTarget;
+    setActiveIndex(Math.round(el.scrollLeft / el.clientWidth));
+  }
+
+  function goToIndex(i) {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  }
 
   useEffect(() => {
     if (!lightbox) return;
@@ -17,20 +44,56 @@ export default function PhotoGrid({ photos, size = 96 }) {
   return (
     <>
       {size === 'full' ? (
-        <div className="flex overflow-x-auto snap-x snap-mandatory rounded-2xl ring-1 ring-black/10 dark:ring-white/10 scrollbar-thin">
-          {photos.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setLightbox(p.url)}
-              className="w-full flex-shrink-0 snap-center aspect-square"
-            >
-              {isVideo(p.url) ? (
-                <video src={p.url} className="h-full w-full object-cover" muted />
-              ) : (
-                <img src={p.url} alt="" className="h-full w-full object-cover" />
+        <div className="relative group">
+          <div
+            ref={scrollerRef}
+            onScroll={handleScroll}
+            className="flex overflow-x-auto snap-x snap-mandatory rounded-2xl ring-1 ring-black/10 dark:ring-white/10 no-scrollbar"
+          >
+            {photos.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setLightbox(p.url)}
+                className="relative w-full flex-shrink-0 snap-center aspect-square"
+              >
+                {isVideo(p.url) ? (
+                  <>
+                    <video src={p.url} className="h-full w-full object-cover" muted />
+                    <VideoBadge size="full" />
+                  </>
+                ) : (
+                  <img src={p.url} alt="" className="h-full w-full object-cover" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {photos.length > 1 && (
+            <>
+              <span className="pointer-events-none absolute top-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+                {activeIndex + 1}/{photos.length}
+              </span>
+
+              {activeIndex > 0 && (
+                <button
+                  onClick={() => goToIndex(activeIndex - 1)}
+                  aria-label="Foto sebelumnya"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center size-8 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-black/70 transition"
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
               )}
-            </button>
-          ))}
+              {activeIndex < photos.length - 1 && (
+                <button
+                  onClick={() => goToIndex(activeIndex + 1)}
+                  aria-label="Foto berikutnya"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center size-8 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-black/70 transition"
+                >
+                  <ChevronRight className="size-5" />
+                </button>
+              )}
+            </>
+          )}
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -38,11 +101,14 @@ export default function PhotoGrid({ photos, size = 96 }) {
             <button
               key={p.id}
               onClick={() => setLightbox(p.url)}
-              className="overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
+              className="relative overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
               style={{ width: size, height: size }}
             >
               {isVideo(p.url) ? (
-                <video src={p.url} className="h-full w-full object-cover" muted />
+                <>
+                  <video src={p.url} className="h-full w-full object-cover" muted />
+                  <VideoBadge />
+                </>
               ) : (
                 <img src={p.url} alt="" className="h-full w-full object-cover" />
               )}
