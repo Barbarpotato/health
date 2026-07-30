@@ -99,23 +99,31 @@ router.delete("/:id", async (req, res) => {
 
 	const { data: activity, error: fetchError } = await supabase
 		.from("activities")
-		.select("id, parent_id")
+		.select("id, parent_id, points")
 		.eq("id", activityId)
 		.single();
 	if (fetchError) return res.status(404).json({ error: fetchError.message });
 
-	// Mindful nutrition rows are mandatory companions of their parent — they
-	// can't be deleted on their own, only as part of deleting the whole activity.
+	// Non-anchor categories in a multi-category submission are children of the
+	// anchor row — they can't be deleted on their own, only with the whole submission.
 	if (activity.parent_id) {
 		return res.status(400).json({
-			error: "Tidak bisa menghapus data mindful nutrition secara terpisah. Hapus aktivitas utamanya.",
+			error: "Tidak bisa menghapus aktivitas ini secara terpisah. Hapus aktivitas utamanya.",
 		});
 	}
 
 	const { data: children } = await supabase
 		.from("activities")
-		.select("id")
+		.select("id, points")
 		.eq("parent_id", activityId);
+
+	// Once the admin has awarded points anywhere in this submission, it's locked
+	// from deletion — otherwise a user could erase the record behind the points.
+	if (activity.points > 0 || (children || []).some((c) => c.points > 0)) {
+		return res.status(400).json({
+			error: "Aktivitas ini sudah diberi poin dan tidak bisa dihapus.",
+		});
+	}
 
 	// Photos are uploaded under a storage folder named after the activity id
 	// (see routes/photos.js upload path) — remove the actual files first,

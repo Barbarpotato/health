@@ -1,4 +1,5 @@
-import { Trash2, Salad } from 'lucide-react';
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import CategoryBadge from './CategoryBadge';
 import PhotoGrid from './PhotoGrid';
 import { categoryMeta } from '../lib/categories';
@@ -13,6 +14,15 @@ function timeAgo(iso) {
 }
 
 export default function ActivityCard({ activity, showAuthor = false, onDelete }) {
+  const sections = [
+    { category: activity.category, photos: activity.photos },
+    ...(activity.children || []).map((c) => ({ category: c.category, photos: c.photos })),
+  ];
+  const [activeCategory, setActiveCategory] = useState(activity.category);
+  const activeSection = sections.find((s) => s.category === activeCategory) || sections[0];
+
+  const totalPoints = (activity.points || 0) + (activity.children || []).reduce((sum, c) => sum + (c.points || 0), 0);
+  const locked = activity.points > 0 || activity.children?.some((c) => c.points > 0);
   const meta = categoryMeta(activity.category);
 
   return (
@@ -21,13 +31,17 @@ export default function ActivityCard({ activity, showAuthor = false, onDelete })
         <p className="font-semibold text-base text-neutral-900 dark:text-white mb-2">{activity.users.full_name}</p>
       )}
 
-      <div className="flex items-start justify-between gap-3">
-        <CategoryBadge category={activity.category} />
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <span className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
+          {timeAgo(activity.created_at)}
+        </span>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
-            {timeAgo(activity.created_at)}
-          </span>
-          {onDelete && (
+          {totalPoints > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-400/30 px-2.5 py-1 text-xs font-medium">
+              +{totalPoints} poin
+            </span>
+          )}
+          {onDelete && !locked && (
             <button
               onClick={() => onDelete(activity.id)}
               className="opacity-0 group-hover:opacity-100 transition text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400"
@@ -39,33 +53,25 @@ export default function ActivityCard({ activity, showAuthor = false, onDelete })
         </div>
       </div>
 
+      {activeSection.photos?.length > 0 && <PhotoGrid photos={activeSection.photos} size="full" />}
+
       {activity.caption && (
         <p className="mt-3 text-sm text-neutral-800 dark:text-neutral-100 leading-relaxed">{activity.caption}</p>
       )}
 
-      {activity.photos?.length > 0 && (
-        <div className="mt-3">
-          <PhotoGrid photos={activity.photos} />
-        </div>
-      )}
-
-      {activity.children?.map((child) => (
-        <div key={child.id} className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-          <CategoryBadge category={child.category} />
-          {child.photos?.length > 0 && (
-            <div className="mt-3">
-              <PhotoGrid photos={child.photos} />
-            </div>
-          )}
-        </div>
-      ))}
-
-      {!activity.children?.length && (
-        <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10 flex items-center gap-1.5 text-xs text-neutral-400 dark:text-neutral-600 italic">
-          <Salad className="size-3.5" />
-          Mindful nutrition belum tercatat (data lama)
-        </div>
-      )}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {sections.map((s) => (
+          <button
+            key={s.category}
+            onClick={() => setActiveCategory(s.category)}
+            className={`rounded-full transition ${
+              s.category === activeCategory ? 'ring-2 ring-offset-1 ring-offset-transparent' : 'opacity-60 hover:opacity-100'
+            }`}
+          >
+            <CategoryBadge category={s.category} />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

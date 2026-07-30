@@ -1,6 +1,7 @@
 const express = require('express');
 const supabase = require('../lib/supabase');
 const VALID_CATEGORIES = require('../lib/categories');
+const POINTS_BY_CATEGORY = require('../lib/points');
 const { adminToken, requireAdmin } = require('../middleware/adminAuth');
 
 const router = express.Router();
@@ -75,6 +76,7 @@ router.get('/report', requireAdmin, async (req, res) => {
     date_from,
     date_to,
     search,
+    points_awarded,
     sort_by = 'created_at',
     sort_dir = 'desc',
     limit = '25',
@@ -83,6 +85,9 @@ router.get('/report', requireAdmin, async (req, res) => {
 
   if (category && !VALID_CATEGORIES.includes(category)) {
     return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
+  }
+  if (points_awarded && !['true', 'false'].includes(points_awarded)) {
+    return res.status(400).json({ error: 'points_awarded must be true or false' });
   }
 
   const sortableColumns = ['created_at', 'category'];
@@ -106,11 +111,56 @@ router.get('/report', requireAdmin, async (req, res) => {
   if (date_from) query = query.gte('created_at', date_from);
   if (date_to) query = query.lte('created_at', date_to);
   if (search) query = query.ilike('caption', `%${search}%`);
+  if (points_awarded === 'true') query = query.gt('points', 0);
+  if (points_awarded === 'false') query = query.eq('points', 0);
 
   const { data, error, count } = await query;
   if (error) return res.status(400).json({ error: error.message });
 
   res.json({ data, count, limit: pageSize, offset: pageOffset });
+});
+
+// Admin awards/revokes points on an activity. Value is fixed per category
+// (see lib/points.js) — admin toggles given/not given, server resolves the amount.
+router.put('/activities/:id/points', requireAdmin, async (req, res) => {
+  const { awarded } = req.body;
+  if (typeof awarded !== 'boolean') {
+    return res.status(400).json({ error: 'awarded must be a boolean' });
+  }
+
+  const { data: activity, error: findError } = await supabase
+    .from('activities')
+    .select('category')
+    .eq('id', req.params.id)
+    .single();
+  if (findError) return res.status(404).json({ error: findError.message });
+
+  const { data, error } = await supabase
+    .from('activities')
+    .update({ points: awarded ? POINTS_BY_CATEGORY[activity.category] ?? 0 : 0 })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// Leaderboard: total points per user, across every activity (anchor + children).
+router.get('/leaderboard', requireAdmin, async (req, res) => {
+  const [{ data: users, error: usersError }, { data: activities, error: activitiesError }] = await Promise.all([
+    supabase.from('users').select('id, full_name'),
+    supabase.from('activities').select('user_id, points'),
+  ]);
+  if (usersError) return res.status(400).json({ error: usersError.message });
+  if (activitiesError) return res.status(400).json({ error: activitiesError.message });
+
+  const totals = new Map(users.map((u) => [u.id, { user_id: u.id, full_name: u.full_name, points: 0 }]));
+  for (const a of activities) {
+    const row = totals.get(a.user_id);
+    if (row) row.points += a.points || 0;
+  }
+
+  res.json([...totals.values()].sort((a, b) => b.points - a.points));
 });
 
 module.exports = router;

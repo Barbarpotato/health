@@ -16,22 +16,40 @@ export default function PhotoGrid({ photos, size = 96 }) {
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        {photos.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setLightbox(p.url)}
-            className="overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
-            style={{ width: size, height: size }}
-          >
-            {isVideo(p.url) ? (
-              <video src={p.url} className="h-full w-full object-cover" muted />
-            ) : (
-              <img src={p.url} alt="" className="h-full w-full object-cover" />
-            )}
-          </button>
-        ))}
-      </div>
+      {size === 'full' ? (
+        <div className="flex overflow-x-auto snap-x snap-mandatory rounded-2xl ring-1 ring-black/10 dark:ring-white/10 scrollbar-thin">
+          {photos.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setLightbox(p.url)}
+              className="w-full flex-shrink-0 snap-center aspect-square"
+            >
+              {isVideo(p.url) ? (
+                <video src={p.url} className="h-full w-full object-cover" muted />
+              ) : (
+                <img src={p.url} alt="" className="h-full w-full object-cover" />
+              )}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {photos.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setLightbox(p.url)}
+              className="overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
+              style={{ width: size, height: size }}
+            >
+              {isVideo(p.url) ? (
+                <video src={p.url} className="h-full w-full object-cover" muted />
+              ) : (
+                <img src={p.url} alt="" className="h-full w-full object-cover" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {lightbox && (
         <div

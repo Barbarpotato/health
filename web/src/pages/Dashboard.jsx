@@ -23,15 +23,14 @@ export default function Dashboard() {
   const loadingRef = useRef(false);
   const hasMoreRef = useRef(true);
   const sentinelRef = useRef(null);
-  const [category, setCategory] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [caption, setCaption] = useState('');
-  const [files, setFiles] = useState([]);
+  const [filesByCategory, setFilesByCategory] = useState({});
   const [nutritionFiles, setNutritionFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [confirmPost, setConfirmPost] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [loadError, setLoadError] = useState(false);
-  const fileInputRef = useRef(null);
   const nutritionInputRef = useRef(null);
 
   useEffect(() => {
@@ -86,12 +85,24 @@ export default function Dashboard() {
     loadMore();
   }
 
-  function addFiles(newFiles) {
-    setFiles((prev) => [...prev, ...Array.from(newFiles)]);
+  function toggleCategory(value) {
+    setSelectedCategories((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
   }
 
-  function removeFile(index) {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  function addFiles(category, newFiles) {
+    setFilesByCategory((prev) => ({
+      ...prev,
+      [category]: [...(prev[category] || []), ...Array.from(newFiles)],
+    }));
+  }
+
+  function removeFile(category, index) {
+    setFilesByCategory((prev) => ({
+      ...prev,
+      [category]: prev[category].filter((_, i) => i !== index),
+    }));
   }
 
   function addNutritionFiles(newFiles) {
@@ -104,12 +115,13 @@ export default function Dashboard() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!category) {
-      toast.error('Pilih jenis aktivitas terlebih dahulu.');
+    if (selectedCategories.length === 0) {
+      toast.error('Pilih minimal 1 jenis aktivitas terlebih dahulu.');
       return;
     }
-    if (files.length === 0) {
-      toast.error('Tambahkan minimal 1 foto sebelum memposting.');
+    const missingPhotos = selectedCategories.find((cat) => !filesByCategory[cat]?.length);
+    if (missingPhotos) {
+      toast.error('Tambahkan minimal 1 foto untuk setiap aktivitas yang dipilih.');
       return;
     }
     if (nutritionFiles.length === 0) {
@@ -122,38 +134,43 @@ export default function Dashboard() {
   async function submitActivity() {
     setConfirmPost(false);
     setSubmitting(true);
-    let activity;
+    const createdIds = [];
     try {
-      activity = await api('/activities', {
-        method: 'POST',
-        body: JSON.stringify({ user_id: user.id, category, caption: caption.trim() }),
-      });
-
-      await uploadFiles(activity.id, files);
+      // First selected category becomes the anchor row; the rest are linked to
+      // it via parent_id so the whole submission shows as one row in reports.
+      let parentId = null;
+      for (const cat of selectedCategories) {
+        const body = { user_id: user.id, category: cat, caption: caption.trim() };
+        if (parentId) body.parent_id = parentId;
+        const activity = await api('/activities', { method: 'POST', body: JSON.stringify(body) });
+        createdIds.push(activity.id);
+        if (parentId === null) parentId = activity.id;
+        await uploadFiles(activity.id, filesByCategory[cat]);
+      }
 
       const nutrition = await api('/activities', {
         method: 'POST',
         body: JSON.stringify({
           user_id: user.id,
           category: MINDFUL_NUTRITION.value,
-          parent_id: activity.id,
+          parent_id: parentId,
         }),
       });
       await uploadFiles(nutrition.id, nutritionFiles);
 
       toast.success('Aktivitas berhasil diposting!');
-      setCategory(null);
+      setSelectedCategories([]);
       setCaption('');
-      setFiles([]);
+      setFilesByCategory({});
       setNutritionFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
       if (nutritionInputRef.current) nutritionInputRef.current.value = '';
       reloadFromStart();
     } catch (err) {
-      // Mindful nutrition is mandatory — if any step after creating the main
-      // activity fails, roll the whole post back instead of leaving it half-done.
-      if (activity) {
-        await api(`/activities/${activity.id}`, { method: 'DELETE' }).catch(() => {});
+      // Mindful nutrition is mandatory — if any step fails, roll back every
+      // activity created in this batch instead of leaving it half-done.
+      // Deleting each top-level activity cascades its nutrition child too.
+      for (const id of createdIds) {
+        await api(`/activities/${id}`, { method: 'DELETE' }).catch(() => {});
       }
       toast.error(err instanceof ApiError ? err.message : 'Gagal memposting aktivitas. Coba lagi.');
     } finally {
@@ -187,24 +204,24 @@ export default function Dashboard() {
       <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8 flex flex-col gap-8">
         <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 flex flex-col gap-4">
           <div>
-            {!category && (
+            {selectedCategories.length === 0 && (
               <p className="text-xs font-medium text-pink-600 dark:text-pink-400 mb-2 animate-pulse">
-                Pilih jenis aktivitas dulu
+                Pilih minimal 1 jenis aktivitas
               </p>
             )}
             <div className="flex gap-2">
               {CATEGORIES.map((c) => {
                 const Icon = c.icon;
-                const active = category === c.value;
+                const active = selectedCategories.includes(c.value);
                 return (
                   <button
                     type="button"
                     key={c.value}
-                    onClick={() => setCategory(c.value)}
+                    onClick={() => toggleCategory(c.value)}
                     className={`flex-1 flex flex-col items-center gap-1.5 rounded-xl py-3 text-xs font-medium ring-1 transition ${
                       active
                         ? `${c.bg} ${c.color} ${c.ring}`
-                        : category
+                        : selectedCategories.length > 0
                           ? 'ring-black/5 dark:ring-white/5 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
                           : 'ring-2 ring-pink-400/50 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 animate-pulse'
                     }`}
@@ -225,41 +242,53 @@ export default function Dashboard() {
             className="w-full resize-none rounded-xl bg-black/[0.03] dark:bg-white/5 border border-black/10 dark:border-white/10 px-4 py-2.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
           />
 
-          {files.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {files.map((f, i) => (
-                <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
-                  {f.type.startsWith('video/') ? (
-                    <video src={URL.createObjectURL(f)} className="h-full w-full object-cover" muted />
-                  ) : (
-                    <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition"
-                  >
-                    <X className="size-4 text-white" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {selectedCategories.map((cat) => {
+            const meta = CATEGORIES.find((c) => c.value === cat);
+            const catFiles = filesByCategory[cat] || [];
+            return (
+              <div key={cat} className={`rounded-xl p-3 ring-1 ${meta.bg} ${meta.ring}`}>
+                <p className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${meta.color}`}>
+                  <meta.icon className="size-4" strokeWidth={2} />
+                  {meta.label} (wajib foto)
+                </p>
 
-          <label className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 dark:border-white/15 px-4 py-3 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:border-indigo-400/50 hover:bg-indigo-500/5 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition">
-            <ImagePlus className="size-4" />
-            {files.length === 0
-              ? 'Klik untuk tambah foto/video (wajib)'
-              : `${files.length} file dipilih — klik untuk tambah lagi`}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              onChange={(e) => addFiles(e.target.files)}
-              className="hidden"
-            />
-          </label>
+                {catFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {catFiles.map((f, i) => (
+                      <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
+                        {f.type.startsWith('video/') ? (
+                          <video src={URL.createObjectURL(f)} className="h-full w-full object-cover" muted />
+                        ) : (
+                          <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeFile(cat, i)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition"
+                        >
+                          <X className="size-4 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-black/15 dark:border-white/15 px-4 py-3 text-sm font-medium text-neutral-600 dark:text-neutral-300 cursor-pointer transition hover:bg-black/[0.03] dark:hover:bg-white/5">
+                  <ImagePlus className="size-4" />
+                  {catFiles.length === 0
+                    ? 'Klik untuk tambah foto/video (wajib)'
+                    : `${catFiles.length} file dipilih — klik untuk tambah lagi`}
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={(e) => addFiles(cat, e.target.files)}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            );
+          })}
 
           <div className={`rounded-xl p-3 ring-1 ${MINDFUL_NUTRITION.bg} ${MINDFUL_NUTRITION.ring}`}>
             <p className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${MINDFUL_NUTRITION.color}`}>
@@ -307,7 +336,12 @@ export default function Dashboard() {
           </div>
 
           <button
-            disabled={submitting || files.length === 0 || nutritionFiles.length === 0 || !category}
+            disabled={
+              submitting ||
+              selectedCategories.length === 0 ||
+              selectedCategories.some((cat) => !filesByCategory[cat]?.length) ||
+              nutritionFiles.length === 0
+            }
             className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 hover:brightness-110 transition"
           >
             {submitting ? <Spinner className="size-4" /> : <Send className="size-4" />}

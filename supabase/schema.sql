@@ -6,7 +6,7 @@ create table if not exists users (
   password text
 );
 
-create type wellness_category as enum ('physical wellness', 'mental wellness', 'intellectual wellness', 'mindful nutrition');
+create type wellness_category as enum ('physical wellness', 'mental wellness', 'intellectual wellness', 'mindful nutrition', 'bonus activity');
 
 create table if not exists activities (
   id uuid primary key default gen_random_uuid(),
@@ -14,6 +14,7 @@ create table if not exists activities (
   category wellness_category not null,
   caption text,
   parent_id uuid references activities(id) on delete cascade,
+  points integer not null default 0,
   created_at timestamptz not null default now()
 );
 

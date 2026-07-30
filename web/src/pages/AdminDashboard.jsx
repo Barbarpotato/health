@@ -11,7 +11,6 @@ import {
   EyeOff,
   KeyRound,
   Check,
-  Salad,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
@@ -19,7 +18,7 @@ import CategoryBadge from '../components/CategoryBadge';
 import PhotoGrid from '../components/PhotoGrid';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
-import { CATEGORIES } from '../lib/categories';
+import { pointsFor } from '../lib/points';
 
 const inputClass =
   'rounded-lg bg-black/[0.03] dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50';
@@ -39,8 +38,11 @@ export default function AdminDashboard() {
   const [editPassword, setEditPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
+  const [pageTab, setPageTab] = useState('report');
+  const [pointsTab, setPointsTab] = useState('pending');
+  const [pendingPoints, setPendingPoints] = useState({});
+  const [submittingPoints, setSubmittingPoints] = useState(false);
   const [filters, setFilters] = useState({
-    category: '',
     user_id: '',
     date_from: '',
     date_to: '',
@@ -51,6 +53,7 @@ export default function AdminDashboard() {
   });
   const [offset, setOffset] = useState(0);
   const [report, setReport] = useState(null);
+  const [leaderboard, setLeaderboard] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -78,17 +81,26 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!ready) return;
+    setPendingPoints({});
     loadReport();
-  }, [ready, filters, offset]);
+  }, [ready, filters, offset, pointsTab]);
+
+  useEffect(() => {
+    if (!ready || pageTab !== 'leaderboard') return;
+    fetch('/api/admin/leaderboard')
+      .then((r) => r.json())
+      .then(setLeaderboard);
+  }, [ready, pageTab]);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => {
       if (v) params.set(k, v);
     });
+    params.set('points_awarded', pointsTab === 'given' ? 'true' : 'false');
     params.set('offset', offset);
     return params.toString();
-  }, [filters, offset]);
+  }, [filters, offset, pointsTab]);
 
   async function loadReport() {
     setReport(null);
@@ -108,7 +120,6 @@ export default function AdminDashboard() {
   function resetFilters() {
     setOffset(0);
     setFilters({
-      category: '',
       user_id: '',
       date_from: '',
       date_to: '',
@@ -176,6 +187,47 @@ export default function AdminDashboard() {
     }
   }
 
+  function togglePendingPoints(activity) {
+    setPendingPoints((prev) => {
+      const currentlyAwarded = activity.points > 0;
+      const current = prev[activity.id] !== undefined ? prev[activity.id] : currentlyAwarded;
+      const next = { ...prev };
+      const desired = !current;
+      if (desired === currentlyAwarded) delete next[activity.id];
+      else next[activity.id] = desired;
+      return next;
+    });
+  }
+
+  async function handleSubmitPoints(ids) {
+    const entries = ids.filter((id) => pendingPoints[id] !== undefined).map((id) => [id, pendingPoints[id]]);
+    if (entries.length === 0) return;
+    setSubmittingPoints(true);
+    try {
+      const results = await Promise.all(
+        entries.map(([id, awarded]) =>
+          fetch(`/api/admin/activities/${id}/points`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ awarded }),
+          })
+        )
+      );
+      if (results.some((r) => !r.ok)) throw new Error();
+      toast.success(`${entries.length} perubahan poin disimpan`);
+      setPendingPoints((prev) => {
+        const next = { ...prev };
+        entries.forEach(([id]) => delete next[id]);
+        return next;
+      });
+      loadReport();
+    } catch {
+      toast.error('Gagal menyimpan sebagian/semua perubahan poin');
+    } finally {
+      setSubmittingPoints(false);
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/admin/logout', { method: 'POST' });
     navigate('/admin/login');
@@ -199,8 +251,29 @@ export default function AdminDashboard() {
       <Navbar user={username} onLogout={handleLogout} />
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8 flex flex-col gap-6">
-        <section className="glass rounded-2xl p-5">
-          <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400 mb-3">Tambah pengguna</h2>
+        <div className="flex gap-1 rounded-lg bg-black/[0.03] dark:bg-white/5 p-1 w-fit">
+          {[
+            { key: 'report', label: 'Laporan aktivitas' },
+            { key: 'leaderboard', label: 'Leaderboard' },
+            { key: 'users', label: 'Pengguna' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setPageTab(tab.key)}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+                pageTab === tab.key
+                  ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {pageTab === 'users' && (
+        <section className="glass rounded-2xl p-5 flex flex-col gap-4">
+          <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Tambah pengguna</h2>
           <form onSubmit={handleAddUser} className="flex flex-wrap gap-2">
             <input
               value={newUserName}
@@ -222,10 +295,8 @@ export default function AdminDashboard() {
               Tambah
             </button>
           </form>
-        </section>
 
-        <section className="glass rounded-2xl p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 pt-4">
             <button
               onClick={() => setUsersExpanded((s) => !s)}
               className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
@@ -322,7 +393,9 @@ export default function AdminDashboard() {
             </div>
           )}
         </section>
+        )}
 
+        {pageTab === 'report' && (
         <section className="glass rounded-2xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Laporan aktivitas</h2>
@@ -334,20 +407,30 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={filters.category}
-              onChange={(e) => updateFilter('category', e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Semua kategori</option>
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
 
+          <div className="flex gap-1 rounded-lg bg-black/[0.03] dark:bg-white/5 p-1 w-fit">
+            {[
+              { key: 'pending', label: 'Belum diberi poin' },
+              { key: 'given', label: 'Sudah diberi poin' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setOffset(0);
+                  setPointsTab(tab.key);
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  pointsTab === tab.key
+                    ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <select
               value={filters.user_id}
               onChange={(e) => updateFilter('user_id', e.target.value)}
@@ -428,13 +511,14 @@ export default function AdminDashboard() {
                   <SortableHeader label="Kategori" column="category" filters={filters} onSort={toggleSort} />
                   <th className="px-5 py-2 font-medium">Caption</th>
                   <th className="px-5 py-2 font-medium">Foto</th>
+                  <th className="px-5 py-2 font-medium">Poin</th>
                 </tr>
               </thead>
               <tbody>
                 {report === null &&
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i} className="border-b border-black/5 dark:border-white/5">
-                      <td className="px-5 py-3" colSpan={5}>
+                      <td className="px-5 py-3" colSpan={6}>
                         <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse" />
                       </td>
                     </tr>
@@ -452,16 +536,22 @@ export default function AdminDashboard() {
                       {a.users?.full_name ?? '—'}
                     </td>
                     <td className="px-5 py-3">
-                      <CategoryBadge category={a.category} />
+                      <div className="flex flex-wrap gap-1">
+                        <CategoryBadge category={a.category} />
+                        {a.children?.map((child) => <CategoryBadge key={child.id} category={child.category} />)}
+                      </div>
                     </td>
                     <td className="px-5 py-3 max-w-xs text-neutral-800 dark:text-neutral-200">
                       {a.caption || <span className="text-neutral-400 dark:text-neutral-600">—</span>}
                     </td>
                     <td className="px-5 py-3">
-                      <PhotoGrid photos={a.photos} size={36} />
+                      <div className="flex items-center gap-2">
+                        <CategoryBadge category={a.category} />
+                        <PhotoGrid photos={a.photos} size={36} />
+                      </div>
                       {a.children?.map((child) => (
                         <div key={child.id} className="flex items-center gap-2 mt-2">
-                          <Salad className="size-3.5 text-lime-600 dark:text-lime-400 shrink-0" />
+                          <CategoryBadge category={child.category} />
                           <PhotoGrid photos={child.photos} size={28} />
                         </div>
                       ))}
@@ -470,6 +560,36 @@ export default function AdminDashboard() {
                           Mindful nutrition belum tercatat (data lama)
                         </p>
                       )}
+                    </td>
+                    <td className="px-5 py-3">
+                      {(() => {
+                        const rowIds = [a.id, ...(a.children || []).map((c) => c.id)];
+                        const rowHasPending = rowIds.some((id) => pendingPoints[id] !== undefined);
+                        return (
+                          <>
+                            <PointsToggle activity={a} pending={pendingPoints[a.id]} onToggle={togglePendingPoints} />
+                            {a.children?.map((child) => (
+                              <div key={child.id} className="mt-2">
+                                <PointsToggle
+                                  activity={child}
+                                  pending={pendingPoints[child.id]}
+                                  onToggle={togglePendingPoints}
+                                />
+                              </div>
+                            ))}
+                            {rowHasPending && (
+                              <button
+                                disabled={submittingPoints}
+                                onClick={() => handleSubmitPoints(rowIds)}
+                                className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-500 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-40 hover:brightness-110 transition"
+                              >
+                                {submittingPoints && <Spinner className="size-3.5" />}
+                                Submit poin
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
@@ -481,8 +601,70 @@ export default function AdminDashboard() {
             )}
           </div>
         </section>
+        )}
+
+        {pageTab === 'leaderboard' && (
+        <section className="glass rounded-2xl p-5 flex flex-col gap-4">
+          <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Leaderboard</h2>
+
+          <div className="overflow-x-auto scrollbar-thin -mx-5">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="text-left text-neutral-500 border-b border-black/10 dark:border-white/10">
+                  <th className="px-5 py-2 font-medium">#</th>
+                  <th className="px-5 py-2 font-medium">Nama</th>
+                  <th className="px-5 py-2 font-medium">Total poin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard === null &&
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <tr key={i} className="border-b border-black/5 dark:border-white/5">
+                      <td className="px-5 py-3" colSpan={3}>
+                        <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse" />
+                      </td>
+                    </tr>
+                  ))}
+
+                {leaderboard?.map((row, i) => (
+                  <tr key={row.user_id} className="border-b border-black/5 dark:border-white/5">
+                    <td className="px-5 py-3 text-neutral-500 dark:text-neutral-400">{i + 1}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                      {row.full_name}
+                    </td>
+                    <td className="px-5 py-3 font-semibold text-neutral-900 dark:text-white">{row.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {leaderboard?.length === 0 && <EmptyState icon={UserPlus} title="Belum ada pengguna" />}
+          </div>
+        </section>
+        )}
       </main>
     </div>
+  );
+}
+
+function PointsToggle({ activity, pending, onToggle }) {
+  const suggested = pointsFor(activity.category);
+  const given = pending !== undefined ? pending : activity.points > 0;
+  const changed = pending !== undefined;
+  return (
+    <button
+      onClick={() => onToggle(activity)}
+      className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition whitespace-nowrap ring-1 ${
+        changed
+          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-400/40'
+          : given
+            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-400/30'
+            : 'text-neutral-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white ring-black/10 dark:ring-white/10'
+      }`}
+    >
+      {given ? <Check className="size-3.5" /> : null}
+      {given ? `${activity.points || suggested} poin diberikan` : `Beri ${suggested} poin`}
+    </button>
   );
 }
 
