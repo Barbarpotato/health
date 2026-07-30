@@ -202,6 +202,13 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen">
+      {submitting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/50 backdrop-blur-sm">
+          <Spinner className="size-8 text-white" />
+          <p className="text-sm font-medium text-white">Memposting aktivitas...</p>
+        </div>
+      )}
+
       <Navbar
         user={user.full_name}
         points={totalPoints}
