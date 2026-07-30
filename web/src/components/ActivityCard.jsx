@@ -44,7 +44,7 @@ export default function ActivityCard({ activity, showAuthor = false, onDelete })
           {onDelete && !locked && (
             <button
               onClick={() => onDelete(activity.id)}
-              className="opacity-0 group-hover:opacity-100 transition text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400"
+              className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400"
               title="Hapus aktivitas"
             >
               <Trash2 className="size-4" />
