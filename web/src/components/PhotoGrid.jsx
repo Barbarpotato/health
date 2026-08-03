@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Play, ImageIcon } from 'lucide-react';
 import { isVideo } from '../lib/upload';
+import CategoryBadge from './CategoryBadge';
 
 function VideoBadge({ size }) {
   return (
@@ -17,7 +18,7 @@ function VideoBadge({ size }) {
 }
 
 export default function PhotoGrid({ photos, size = 96 }) {
-  const [lightbox, setLightbox] = useState(null);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollerRef = useRef(null);
 
@@ -33,36 +34,50 @@ export default function PhotoGrid({ photos, size = 96 }) {
   }
 
   useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (e) => e.key === 'Escape' && setLightbox(null);
+    if (lightboxIndex === null) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowLeft') setLightboxIndex((i) => Math.max(i - 1, 0));
+      if (e.key === 'ArrowRight') setLightboxIndex((i) => Math.min(i + 1, photos.length - 1));
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lightbox]);
+  }, [lightboxIndex, photos]);
 
   if (!photos || photos.length === 0) return null;
 
+  const lightboxPhoto = lightboxIndex === null ? null : photos[lightboxIndex];
+
   return (
     <>
-      {size === 'full' ? (
+      {size === 'icon' ? (
+        <button
+          onClick={() => setLightboxIndex(0)}
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-neutral-500 ring-1 ring-black/10 dark:ring-white/10 hover:bg-black/5 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white transition"
+        >
+          <ImageIcon className="size-3.5" />
+          {photos.length}
+        </button>
+      ) : size === 'full' ? (
         <div className="relative group">
           <div
             ref={scrollerRef}
             onScroll={handleScroll}
             className="flex overflow-x-auto snap-x snap-mandatory rounded-2xl ring-1 ring-black/10 dark:ring-white/10 no-scrollbar"
           >
-            {photos.map((p) => (
+            {photos.map((p, i) => (
               <button
                 key={p.id}
-                onClick={() => setLightbox(p.url)}
+                onClick={() => setLightboxIndex(i)}
                 className="relative w-full flex-shrink-0 snap-center aspect-square"
               >
                 {isVideo(p.url) ? (
                   <>
-                    <video src={p.url} className="h-full w-full object-cover" muted />
+                    <video src={p.url} className="h-full w-full object-cover" muted preload="none" />
                     <VideoBadge size="full" />
                   </>
                 ) : (
-                  <img src={p.url} alt="" className="h-full w-full object-cover" />
+                  <img src={p.url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 )}
               </button>
             ))}
@@ -97,47 +112,87 @@ export default function PhotoGrid({ photos, size = 96 }) {
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {photos.map((p) => (
+          {photos.map((p, i) => (
             <button
               key={p.id}
-              onClick={() => setLightbox(p.url)}
+              onClick={() => setLightboxIndex(i)}
               className="relative overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30 transition"
               style={{ width: size, height: size }}
             >
               {isVideo(p.url) ? (
                 <>
-                  <video src={p.url} className="h-full w-full object-cover" muted />
+                  <video src={p.url} className="h-full w-full object-cover" muted preload="none" />
                   <VideoBadge />
                 </>
               ) : (
-                <img src={p.url} alt="" className="h-full w-full object-cover" />
+                <img src={p.url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               )}
             </button>
           ))}
         </div>
       )}
 
-      {lightbox && (
+      {lightboxPhoto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black"
-          onClick={() => setLightbox(null)}
+          onClick={() => setLightboxIndex(null)}
         >
           <button
-            onClick={() => setLightbox(null)}
+            onClick={() => setLightboxIndex(null)}
             className="absolute top-4 right-4 z-10 text-white/70 hover:text-white"
           >
             <X className="size-8" />
           </button>
-          {isVideo(lightbox) ? (
+
+          <div className="pointer-events-none absolute top-4 left-4 z-10 flex items-center gap-2">
+            {lightboxPhoto.category && <CategoryBadge category={lightboxPhoto.category} />}
+            {photos.length > 1 && (
+              <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
+                {lightboxIndex + 1}/{photos.length}
+              </span>
+            )}
+          </div>
+
+          {lightboxIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((i) => i - 1);
+              }}
+              aria-label="Foto sebelumnya"
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+            >
+              <ChevronLeft className="size-6" />
+            </button>
+          )}
+          {lightboxIndex < photos.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((i) => i + 1);
+              }}
+              aria-label="Foto berikutnya"
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+            >
+              <ChevronRight className="size-6" />
+            </button>
+          )}
+
+          {isVideo(lightboxPhoto.url) ? (
             <video
-              src={lightbox}
+              src={lightboxPhoto.url}
               controls
               autoPlay
               className="max-w-full max-h-full w-full h-full object-contain"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <img src={lightbox} alt="" className="max-w-full max-h-full w-full h-full object-contain" />
+            <img
+              src={lightboxPhoto.url}
+              alt=""
+              className="max-w-full max-h-full w-full h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
           )}
         </div>
       )}

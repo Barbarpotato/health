@@ -10,3 +10,6 @@ export const POINTS_BY_CATEGORY = {
 export function pointsFor(category) {
   return POINTS_BY_CATEGORY[category] ?? 0;
 }
+
+// Bonus is the one category where admin picks the amount instead of a fixed value.
+export const BONUS_POINT_OPTIONS = [5, 10];

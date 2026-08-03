@@ -40,6 +40,17 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'activity_id and url required' });
   }
 
+  const { data: activity, error: findError } = await supabase
+    .from('activities')
+    .select('points')
+    .eq('id', activity_id)
+    .single();
+  if (findError) return res.status(404).json({ error: findError.message });
+  // Same rule as editing the activity itself — once scored, it's locked.
+  if (activity.points > 0) {
+    return res.status(400).json({ error: 'Aktivitas ini sudah diberi poin dan tidak bisa diubah.' });
+  }
+
   const { data, error } = await supabase
     .from('photos')
     .insert({ activity_id, url })
@@ -50,6 +61,16 @@ router.post('/', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const { data: photo, error: findError } = await supabase
+    .from('photos')
+    .select('activity_id, activities(points)')
+    .eq('id', req.params.id)
+    .single();
+  if (findError) return res.status(404).json({ error: findError.message });
+  if (photo.activities?.points > 0) {
+    return res.status(400).json({ error: 'Aktivitas ini sudah diberi poin dan tidak bisa diubah.' });
+  }
+
   const { error } = await supabase.from('photos').delete().eq('id', req.params.id);
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();

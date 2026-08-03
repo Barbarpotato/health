@@ -2,6 +2,7 @@ const express = require('express');
 const supabase = require('../lib/supabase');
 const VALID_CATEGORIES = require('../lib/categories');
 const POINTS_BY_CATEGORY = require('../lib/points');
+const { BONUS_POINT_OPTIONS } = POINTS_BY_CATEGORY;
 const { adminToken, requireAdmin } = require('../middleware/adminAuth');
 
 const router = express.Router();
@@ -121,11 +122,11 @@ router.get('/report', requireAdmin, async (req, res) => {
 });
 
 // Admin awards/revokes points on an activity. Value is fixed per category
-// (see lib/points.js) — admin toggles given/not given, server resolves the amount.
+// (see lib/points.js), except "bonus" where admin picks 5 or 10.
 router.put('/activities/:id/points', requireAdmin, async (req, res) => {
-  const { awarded } = req.body;
-  if (typeof awarded !== 'boolean') {
-    return res.status(400).json({ error: 'awarded must be a boolean' });
+  const { points } = req.body;
+  if (!Number.isInteger(points) || points < 0) {
+    return res.status(400).json({ error: 'points must be a non-negative integer' });
   }
 
   const { data: activity, error: findError } = await supabase
@@ -135,9 +136,16 @@ router.put('/activities/:id/points', requireAdmin, async (req, res) => {
     .single();
   if (findError) return res.status(404).json({ error: findError.message });
 
+  const valid =
+    points === 0 ||
+    (activity.category === 'bonus'
+      ? BONUS_POINT_OPTIONS.includes(points)
+      : points === (POINTS_BY_CATEGORY[activity.category] ?? 0));
+  if (!valid) return res.status(400).json({ error: 'points value not allowed for this category' });
+
   const { data, error } = await supabase
     .from('activities')
-    .update({ points: awarded ? POINTS_BY_CATEGORY[activity.category] ?? 0 : 0 })
+    .update({ points })
     .eq('id', req.params.id)
     .select()
     .single();

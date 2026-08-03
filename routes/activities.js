@@ -90,6 +90,20 @@ router.put("/:id", async (req, res) => {
 			});
 	}
 
+	const { data: existing, error: findError } = await supabase
+		.from("activities")
+		.select("points")
+		.eq("id", req.params.id)
+		.single();
+	if (findError) return res.status(404).json({ error: findError.message });
+
+	// Same rule as delete — once admin has scored it, the record is locked.
+	if (existing.points > 0) {
+		return res.status(400).json({
+			error: "Aktivitas ini sudah diberi poin dan tidak bisa diubah.",
+		});
+	}
+
 	const update = {};
 	if (category) update.category = category;
 	if (caption !== undefined) update.caption = caption;

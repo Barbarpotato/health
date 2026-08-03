@@ -194,6 +194,42 @@ export default function Dashboard() {
     reloadFromStart();
   }
 
+  async function handleEditCaption(id, caption) {
+    try {
+      await api(`/activities/${id}`, { method: 'PUT', body: JSON.stringify({ caption }) });
+      setActivities((prev) => prev.map((a) => (a.id === id ? { ...a, caption } : a)));
+      toast.success('Caption diperbarui.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Gagal memperbarui caption.');
+      throw err;
+    }
+  }
+
+  async function refreshActivity(anchorId) {
+    const fresh = await api(`/activities/${anchorId}`);
+    setActivities((prev) => prev.map((a) => (a.id === anchorId ? fresh : a)));
+  }
+
+  async function handleDeletePhoto(photoId, anchorId) {
+    try {
+      await api(`/photos/${photoId}`, { method: 'DELETE' });
+      await refreshActivity(anchorId);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Gagal menghapus foto.');
+      throw err;
+    }
+  }
+
+  async function handleAddPhotos(sectionId, anchorId, files) {
+    try {
+      await uploadFiles(sectionId, files);
+      await refreshActivity(anchorId);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Gagal mengunggah foto.');
+      throw err;
+    }
+  }
+
   if (!user) return null;
 
   const NutritionIcon = MINDFUL_NUTRITION.icon;
@@ -402,7 +438,14 @@ export default function Dashboard() {
 
           <div className="flex flex-col gap-4">
             {activities?.map((a) => (
-              <ActivityCard key={a.id} activity={a} onDelete={() => setConfirmDeleteId(a.id)} />
+              <ActivityCard
+                key={a.id}
+                activity={a}
+                onDelete={() => setConfirmDeleteId(a.id)}
+                onEditCaption={handleEditCaption}
+                onDeletePhoto={handleDeletePhoto}
+                onAddPhotos={handleAddPhotos}
+              />
             ))}
           </div>
 
