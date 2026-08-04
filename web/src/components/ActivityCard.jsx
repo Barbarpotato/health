@@ -4,7 +4,7 @@ import CategoryBadge from './CategoryBadge';
 import PhotoGrid from './PhotoGrid';
 import Spinner from './Spinner';
 import ConfirmDialog from './ConfirmDialog';
-import { CATEGORIES, categoryMeta } from '../lib/categories';
+import { CATEGORIES, MINDFUL_NUTRITION, categoryMeta } from '../lib/categories';
 import { isVideo } from '../lib/upload';
 
 function timeAgo(iso) {
@@ -36,6 +36,7 @@ export default function ActivityCard({
 
   const usedCategories = sections.map((s) => s.category);
   const addableCategories = CATEGORIES.filter((c) => !usedCategories.includes(c.value));
+  const missingNutrition = !usedCategories.includes(MINDFUL_NUTRITION.value);
 
   const [editing, setEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(activity.caption || '');
@@ -272,6 +273,17 @@ export default function ActivityCard({
               + {c.label}
             </button>
           ))}
+
+        {editing && missingNutrition && (
+          <button
+            type="button"
+            disabled={categoryBusy}
+            onClick={() => handleAddCategory(MINDFUL_NUTRITION.value)}
+            className="rounded-full ring-1 ring-dashed ring-lime-400/50 px-2.5 py-1 text-xs font-medium text-lime-600 dark:text-lime-400 hover:bg-lime-500/10 disabled:opacity-40 transition"
+          >
+            + {MINDFUL_NUTRITION.label} (wajib)
+          </button>
+        )}
       </div>
 
       <ConfirmDialog
