@@ -230,6 +230,29 @@ export default function Dashboard() {
     }
   }
 
+  async function handleAddCategory(anchorId, category) {
+    try {
+      await api('/activities', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: user.id, category, parent_id: anchorId }),
+      });
+      await refreshActivity(anchorId);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Gagal menambah kategori.');
+      throw err;
+    }
+  }
+
+  async function handleDeleteCategory(sectionId, anchorId) {
+    try {
+      await api(`/activities/${sectionId}`, { method: 'DELETE' });
+      await refreshActivity(anchorId);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Gagal menghapus kategori.');
+      throw err;
+    }
+  }
+
   if (!user) return null;
 
   const NutritionIcon = MINDFUL_NUTRITION.icon;
@@ -445,6 +468,8 @@ export default function Dashboard() {
                 onEditCaption={handleEditCaption}
                 onDeletePhoto={handleDeletePhoto}
                 onAddPhotos={handleAddPhotos}
+                onAddCategory={handleAddCategory}
+                onDeleteCategory={handleDeleteCategory}
               />
             ))}
           </div>

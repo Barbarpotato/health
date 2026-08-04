@@ -4,7 +4,7 @@ import CategoryBadge from './CategoryBadge';
 import PhotoGrid from './PhotoGrid';
 import Spinner from './Spinner';
 import ConfirmDialog from './ConfirmDialog';
-import { categoryMeta } from '../lib/categories';
+import { CATEGORIES, categoryMeta } from '../lib/categories';
 import { isVideo } from '../lib/upload';
 
 function timeAgo(iso) {
@@ -23,6 +23,8 @@ export default function ActivityCard({
   onEditCaption,
   onDeletePhoto,
   onAddPhotos,
+  onAddCategory,
+  onDeleteCategory,
 }) {
   const sections = [
     { category: activity.category, photos: activity.photos, id: activity.id },
@@ -30,6 +32,10 @@ export default function ActivityCard({
   ];
   const [activeCategory, setActiveCategory] = useState(activity.category);
   const activeSection = sections.find((s) => s.category === activeCategory) || sections[0];
+  const [categoryBusy, setCategoryBusy] = useState(false);
+
+  const usedCategories = sections.map((s) => s.category);
+  const addableCategories = CATEGORIES.filter((c) => !usedCategories.includes(c.value));
 
   const [editing, setEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(activity.caption || '');
@@ -44,6 +50,7 @@ export default function ActivityCard({
   const [deletingPhotoId, setDeletingPhotoId] = useState(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [confirmDeletePhotoId, setConfirmDeletePhotoId] = useState(null);
+  const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState(null);
 
   const totalPoints = (activity.points || 0) + (activity.children || []).reduce((sum, c) => sum + (c.points || 0), 0);
   const locked = activity.points > 0 || activity.children?.some((c) => c.points > 0);
@@ -85,6 +92,32 @@ export default function ActivityCard({
       // caller already surfaced the error via toast
     } finally {
       setUploadingPhotos(false);
+    }
+  }
+
+  async function handleAddCategory(category) {
+    setCategoryBusy(true);
+    try {
+      await onAddCategory(activity.id, category);
+      setActiveCategory(category);
+    } catch {
+      // caller already surfaced the error via toast
+    } finally {
+      setCategoryBusy(false);
+    }
+  }
+
+  async function handleDeleteCategory() {
+    const sectionId = confirmDeleteCategoryId;
+    setConfirmDeleteCategoryId(null);
+    setCategoryBusy(true);
+    try {
+      await onDeleteCategory(sectionId, activity.id);
+      setActiveCategory(activity.category);
+    } catch {
+      // caller already surfaced the error via toast
+    } finally {
+      setCategoryBusy(false);
     }
   }
 
@@ -199,18 +232,46 @@ export default function ActivityCard({
         )
       )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {sections.map((s) => (
-          <button
-            key={s.category}
-            onClick={() => setActiveCategory(s.category)}
-            className={`rounded-full transition ${
-              s.category === activeCategory ? 'ring-2 ring-offset-1 ring-offset-transparent' : 'opacity-60 hover:opacity-100'
-            }`}
-          >
-            <CategoryBadge category={s.category} />
-          </button>
-        ))}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {sections.map((s) => {
+          const deletable = editing && s.id !== activity.id && s.category !== 'mindful nutrition';
+          return (
+            <span key={s.id} className="relative inline-flex">
+              <button
+                onClick={() => setActiveCategory(s.category)}
+                className={`rounded-full transition ${
+                  s.category === activeCategory ? 'ring-2 ring-offset-1 ring-offset-transparent' : 'opacity-60 hover:opacity-100'
+                }`}
+              >
+                <CategoryBadge category={s.category} />
+              </button>
+              {deletable && (
+                <button
+                  type="button"
+                  disabled={categoryBusy}
+                  onClick={() => setConfirmDeleteCategoryId(s.id)}
+                  title="Hapus kategori ini"
+                  className="absolute -top-1.5 -right-1.5 flex items-center justify-center size-4 rounded-full bg-black/60 text-white hover:bg-red-500 disabled:opacity-40 transition"
+                >
+                  <Trash2 className="size-2.5" />
+                </button>
+              )}
+            </span>
+          );
+        })}
+
+        {editing &&
+          addableCategories.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              disabled={categoryBusy}
+              onClick={() => handleAddCategory(c.value)}
+              className="rounded-full ring-1 ring-dashed ring-black/15 dark:ring-white/15 px-2.5 py-1 text-xs font-medium text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 disabled:opacity-40 transition"
+            >
+              + {c.label}
+            </button>
+          ))}
       </div>
 
       <ConfirmDialog
@@ -221,6 +282,16 @@ export default function ActivityCard({
         danger
         onConfirm={handleDeletePhoto}
         onCancel={() => setConfirmDeletePhotoId(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteCategoryId !== null}
+        title="Hapus kategori ini?"
+        description="Kategori dan semua fotonya akan dihapus permanen dari postingan ini."
+        confirmLabel="Hapus"
+        danger
+        onConfirm={handleDeleteCategory}
+        onCancel={() => setConfirmDeleteCategoryId(null)}
       />
     </div>
   );

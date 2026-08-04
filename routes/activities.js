@@ -133,17 +133,30 @@ router.delete("/:id", async (req, res) => {
 
 	const { data: activity, error: fetchError } = await supabase
 		.from("activities")
-		.select("id, parent_id, points")
+		.select("id, parent_id, category, points")
 		.eq("id", activityId)
 		.single();
 	if (fetchError) return res.status(404).json({ error: fetchError.message });
 
-	// Non-anchor categories in a multi-category submission are children of the
-	// anchor row — they can't be deleted on their own, only with the whole submission.
+	// A child category can be removed on its own (editing a submission), as
+	// long as it isn't the mandatory mindful nutrition companion and isn't
+	// already scored. The anchor row itself still requires deleting the whole
+	// submission — see below.
 	if (activity.parent_id) {
-		return res.status(400).json({
-			error: "Tidak bisa menghapus aktivitas ini secara terpisah. Hapus aktivitas utamanya.",
-		});
+		if (activity.category === "mindful nutrition") {
+			return res.status(400).json({
+				error: "Mindful nutrition wajib ada dan tidak bisa dihapus.",
+			});
+		}
+		if (activity.points > 0) {
+			return res.status(400).json({
+				error: "Aktivitas ini sudah diberi poin dan tidak bisa dihapus.",
+			});
+		}
+		await removeStorageFolder(activityId);
+		const { error } = await supabase.from("activities").delete().eq("id", activityId);
+		if (error) return res.status(400).json({ error: error.message });
+		return res.status(204).send();
 	}
 
 	const { data: children } = await supabase
