@@ -1,7 +1,10 @@
 const express = require('express');
+const multer = require('multer');
 const supabase = require('../lib/supabase');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024 } });
+const IMAGE_API_BASE = `${process.env.IMAGE_API_ORIGIN}/image_ricola/api/image`;
 
 router.get('/', async (req, res) => {
   const { activity_id } = req.query;
@@ -31,6 +34,44 @@ router.post('/sign-upload', async (req, res) => {
 
   const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
   res.json({ path, token: data.token, signedUrl: data.signedUrl, publicUrl });
+});
+
+// Proxies an image to the image_ricola API — the browser can't call it
+// directly since the Authorization token is a static shared secret that
+// must never reach client-side code.
+router.post('/image-upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'file required' });
+
+  const form = new FormData();
+  form.append('file', new Blob([req.file.buffer]), req.file.originalname);
+  form.append('title', 'Wellness Activity Photo');
+  form.append('description', 'Uploaded via wellness app');
+  form.append('keyword', 'wellness');
+  form.append('public', '1');
+
+  try {
+    const createRes = await fetch(`${IMAGE_API_BASE}/create`, {
+      method: 'POST',
+      headers: { Authorization: process.env.IMAGE_API_AUTH_TOKEN },
+      body: form,
+    });
+    const created = await createRes.json().catch(() => null);
+    if (!createRes.ok || !created?.image_id) {
+      return res.status(502).json({ error: 'Gagal mengunggah gambar ke server eksternal.' });
+    }
+
+    const linkRes = await fetch(`${IMAGE_API_BASE}/fetch_link/${created.image_id}/1600/1600/public`, {
+      headers: { Authorization: process.env.IMAGE_API_AUTH_TOKEN },
+    });
+    const link = await linkRes.json().catch(() => null);
+    if (!linkRes.ok || !link?.url) {
+      return res.status(502).json({ error: 'Gagal mengambil URL gambar.' });
+    }
+
+    res.json({ url: `${process.env.IMAGE_API_ORIGIN}${link.url}` });
+  } catch {
+    res.status(502).json({ error: 'Gagal terhubung ke server gambar eksternal.' });
+  }
 });
 
 // Create a photo/video record from an already-uploaded URL
