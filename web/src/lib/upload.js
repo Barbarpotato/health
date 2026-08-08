@@ -24,3 +24,14 @@ export async function uploadFiles(activityId, files) {
 export function isVideo(url) {
   return /\.(mp4|webm|mov|ogg|m4v)$/i.test(url);
 }
+
+// Some photo rows point at the external image_ricola resize proxy, which
+// crops/stretches to whatever fixed width+height it's given. Dropping both
+// params makes it serve the original, undistorted image.
+export function photoSrc(url) {
+  if (!url || !url.includes('image_ricola')) return url;
+  const u = new URL(url);
+  u.searchParams.delete('width');
+  u.searchParams.delete('height');
+  return u.toString();
+}

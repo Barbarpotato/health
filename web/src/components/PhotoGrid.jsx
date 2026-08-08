@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Play, ImageIcon } from 'lucide-react';
-import { isVideo } from '../lib/upload';
+import { isVideo, photoSrc } from '../lib/upload';
 import CategoryBadge from './CategoryBadge';
 
 function VideoBadge({ size }) {
@@ -69,15 +69,21 @@ export default function PhotoGrid({ photos, size = 96 }) {
               <button
                 key={p.id}
                 onClick={() => setLightboxIndex(i)}
-                className="relative w-full flex-shrink-0 snap-center aspect-square"
+                className="relative w-full flex-shrink-0 snap-center"
               >
                 {isVideo(p.url) ? (
                   <>
-                    <video src={p.url} className="h-full w-full object-cover" muted preload="none" />
+                    <video src={photoSrc(p.url)} className="max-w-full h-auto block mx-auto" muted preload="none" />
                     <VideoBadge size="full" />
                   </>
                 ) : (
-                  <img src={p.url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <img
+                    src={photoSrc(p.url)}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="max-w-full h-auto block mx-auto"
+                  />
                 )}
               </button>
             ))}
@@ -121,11 +127,11 @@ export default function PhotoGrid({ photos, size = 96 }) {
             >
               {isVideo(p.url) ? (
                 <>
-                  <video src={p.url} className="h-full w-full object-cover" muted preload="none" />
+                  <video src={photoSrc(p.url)} className="h-full w-full object-cover" muted preload="none" />
                   <VideoBadge />
                 </>
               ) : (
-                <img src={p.url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                <img src={photoSrc(p.url)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               )}
             </button>
           ))}
@@ -180,7 +186,7 @@ export default function PhotoGrid({ photos, size = 96 }) {
 
           {isVideo(lightboxPhoto.url) ? (
             <video
-              src={lightboxPhoto.url}
+              src={photoSrc(lightboxPhoto.url)}
               controls
               autoPlay
               className="max-w-full max-h-full w-full h-full object-contain"
@@ -188,7 +194,7 @@ export default function PhotoGrid({ photos, size = 96 }) {
             />
           ) : (
             <img
-              src={lightboxPhoto.url}
+              src={photoSrc(lightboxPhoto.url)}
               alt=""
               className="max-w-full max-h-full w-full h-full object-contain"
               onClick={(e) => e.stopPropagation()}

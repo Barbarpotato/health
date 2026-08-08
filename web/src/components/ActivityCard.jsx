@@ -5,7 +5,7 @@ import PhotoGrid from './PhotoGrid';
 import Spinner from './Spinner';
 import ConfirmDialog from './ConfirmDialog';
 import { CATEGORIES, MINDFUL_NUTRITION, categoryMeta } from '../lib/categories';
-import { isVideo } from '../lib/upload';
+import { isVideo, photoSrc } from '../lib/upload';
 
 function timeAgo(iso) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -167,9 +167,9 @@ export default function ActivityCard({
           {(activeSection.photos || []).map((p) => (
             <div key={p.id} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
               {isVideo(p.url) ? (
-                <video src={p.url} className="h-full w-full object-cover" muted />
+                <video src={photoSrc(p.url)} className="h-full w-full object-cover" muted />
               ) : (
-                <img src={p.url} alt="" className="h-full w-full object-cover" />
+                <img src={photoSrc(p.url)} alt="" className="h-full w-full object-cover" />
               )}
               <button
                 type="button"

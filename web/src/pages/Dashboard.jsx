@@ -99,26 +99,37 @@ export default function Dashboard() {
     );
   }
 
+  // Preview URL is created once per file (not on every render) and revoked
+  // when the file is removed — recreating it inline in JSX during typing
+  // leaked a blob URL per file on every keystroke and caused the UI to lag.
+  function toPreview(file) {
+    return { file, url: URL.createObjectURL(file) };
+  }
+
   function addFiles(category, newFiles) {
     setFilesByCategory((prev) => ({
       ...prev,
-      [category]: [...(prev[category] || []), ...Array.from(newFiles)],
+      [category]: [...(prev[category] || []), ...Array.from(newFiles).map(toPreview)],
     }));
   }
 
   function removeFile(category, index) {
-    setFilesByCategory((prev) => ({
-      ...prev,
-      [category]: prev[category].filter((_, i) => i !== index),
-    }));
+    setFilesByCategory((prev) => {
+      const removed = prev[category][index];
+      if (removed) URL.revokeObjectURL(removed.url);
+      return { ...prev, [category]: prev[category].filter((_, i) => i !== index) };
+    });
   }
 
   function addNutritionFiles(newFiles) {
-    setNutritionFiles((prev) => [...prev, ...Array.from(newFiles)]);
+    setNutritionFiles((prev) => [...prev, ...Array.from(newFiles).map(toPreview)]);
   }
 
   function removeNutritionFile(index) {
-    setNutritionFiles((prev) => prev.filter((_, i) => i !== index));
+    setNutritionFiles((prev) => {
+      URL.revokeObjectURL(prev[index].url);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function handleSubmit(e) {
@@ -153,7 +164,7 @@ export default function Dashboard() {
         const activity = await api('/activities', { method: 'POST', body: JSON.stringify(body) });
         createdIds.push(activity.id);
         if (parentId === null) parentId = activity.id;
-        await uploadFiles(activity.id, filesByCategory[cat]);
+        await uploadFiles(activity.id, filesByCategory[cat].map((p) => p.file));
       }
 
       const nutrition = await api('/activities', {
@@ -164,9 +175,11 @@ export default function Dashboard() {
           parent_id: parentId,
         }),
       });
-      await uploadFiles(nutrition.id, nutritionFiles);
+      await uploadFiles(nutrition.id, nutritionFiles.map((p) => p.file));
 
       toast.success('Aktivitas berhasil diposting!');
+      Object.values(filesByCategory).flat().forEach((p) => URL.revokeObjectURL(p.url));
+      nutritionFiles.forEach((p) => URL.revokeObjectURL(p.url));
       setSelectedCategories([]);
       setCaption('');
       setFilesByCategory({});
@@ -339,10 +352,10 @@ export default function Dashboard() {
                   <div className="flex flex-wrap gap-2 mb-2">
                     {catFiles.map((f, i) => (
                       <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
-                        {f.type.startsWith('video/') ? (
-                          <video src={URL.createObjectURL(f)} className="h-full w-full object-cover" muted />
+                        {f.file.type.startsWith('video/') ? (
+                          <video src={f.url} className="h-full w-full object-cover" muted />
                         ) : (
-                          <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                          <img src={f.url} alt="" className="h-full w-full object-cover" />
                         )}
                         <button
                           type="button"
@@ -383,10 +396,10 @@ export default function Dashboard() {
               <div className="flex flex-wrap gap-2 mb-2">
                 {nutritionFiles.map((f, i) => (
                   <div key={i} className="relative size-16 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
-                    {f.type.startsWith('video/') ? (
-                      <video src={URL.createObjectURL(f)} className="h-full w-full object-cover" muted />
+                    {f.file.type.startsWith('video/') ? (
+                      <video src={f.url} className="h-full w-full object-cover" muted />
                     ) : (
-                      <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                      <img src={f.url} alt="" className="h-full w-full object-cover" />
                     )}
                     <button
                       type="button"
