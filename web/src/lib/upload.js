@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { api } from './api';
 
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|ogg|m4v)$/i;
+const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i;
 const MAX_EDGE = 1600;
 
 // Videos go straight from the browser to Supabase Storage via a signed URL,
@@ -57,8 +58,14 @@ export async function uploadFiles(activityId, files) {
   }
 }
 
+// Extension wins over MIME type: some phones (notably MIUI "Motion Photo")
+// report file.type as video/* for a .jpg that has a video clip embedded in
+// it, which would otherwise misroute the photo to Supabase Storage instead
+// of image_ricola.
 function isVideoFile(file) {
-  return file.type.startsWith('video/') || VIDEO_EXT_RE.test(file.name);
+  if (IMAGE_EXT_RE.test(file.name)) return false;
+  if (VIDEO_EXT_RE.test(file.name)) return true;
+  return file.type.startsWith('video/');
 }
 
 export function isVideo(url) {
